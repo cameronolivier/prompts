@@ -40,10 +40,18 @@
 - Default ORM: Drizzle; override per project
 - Prefer tRPC for internal API, REST only when integrating externals
 
-### QUALITY GATES
-- Commands:  
-  `pnpm dev` · `pnpm build` · `pnpm test` · `pnpm lint --fix`  
-  Agent must lint & test before proposing code
-- No `console.log` in committed code (use logger util)
-- Every exported fn/component gets a colocated test
+### GIT & COMMITS
+- All commit messages **must** follow Conventional Commits v1.0.0.
+- Agent-proposed commits use `type(scope?): subject` (e.g. `feat(ui): add login flow`).
+- CI gate: run `npm run commitlint` (or `yarn commitlint`/`pnpm commitlint`) before merging.
+
+### QUALITY GATES  (package-manager-agnostic)
+- Every repo must expose these npm-scripts:
+    dev     → local dev server / metro
+    build   → production build / bundle
+    test    → unit + integration tests
+    lint    → eslint + prettier autofix
+- Scripts: dev, build, test, lint
+- Before any code suggestion agent runs: `npm run lint && npm run test`
+  (Use the project’s configured PM: npm, yarn, pnpm, bun, etc.)
 ```
