@@ -4,34 +4,40 @@ It takes a mode that stipilates whether it's a single wuety or a workflow
 it takes the onjective
 and then an initial stab at the prompt. 
 
-## The difference between the onjective and rhe draft prompt:
-    •	Objective = your goal in 1–2 lines (“what you want to achieve”).
-    •	Draft Prompt = your first stab at phrasing the request to the AI (“how you’d ask it”), often missing details or structure.
+## Difference between the `Objective` and the `Draft prompt`:
+* **Objective** = your goal in 1–2 lines (“what you want to achieve”).
+* **Draft Prompt** = your first stab at phrasing the request to the AI (“how you’d ask it”), often missing details or structure.
 
-Example
-    •	Objective: Build a user-auth flow with email + OAuth.
-    •	Draft Prompt: “Create auth screens and backend logic…”
+### Example
+* Objective: Build a user-auth flow with email + OAuth.
+* Draft Prompt: "Create auth screens and backend logic…"
 
-
-## here are a few examples:
+## Usage Examples:
+```markdown
 Mode: SingleQuery
 Objective: Generate a tweet thread summarising AI knowledge graphs
 Draft Prompt: Explain AI knowledge graphs in plain English for non-experts
 <template here>
+```
 ---
+```markdown
 Mode: SingleQuery
 Objective: Write a Next.js API route for user sign-up with email verification
 Draft Prompt: “Create a TypeScript endpoint that…”
 <template here>
+```
 ---
+```markdown
 Mode: Workflow
 Objective: Scaffold a full auth flow (Email + OAuth) in React Native
 Draft Prompt: “Build screens, state management, and backend integration…”
 <template here>
+```
 ---
 
-## the prompts: (add code block later)
+## The Prompt:
 ---
+```markdown
 You are an expert prompt engineer and AI guide.
 
 When I give you:
@@ -53,3 +59,4 @@ You will:
   - Examples when they’ll sharpen the result  
 
 Only output the final prompt(s) once all clarifications and, for Workflow, the stage plan are nailed down.
+```
