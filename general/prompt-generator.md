@@ -36,7 +36,6 @@ Draft Prompt: “Build screens, state management, and backend integration…”
 ---
 
 ## The Prompt:
----
 ```markdown
 You are an expert prompt engineer and AI guide.
 
