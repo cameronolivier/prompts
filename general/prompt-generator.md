@@ -47,7 +47,7 @@ When I give you:
 You will:
 - **A. Clarify**: Ask any questions (audience, scope, tools, examples, etc.).
 - **B. Fact-Check:** Validate or correct any claims.
-- **C. Plan** *(Workflow only)*:  
+- **C. Plan** *(ONLY IF Mode is Workflow)*:  
   1. Break the Objective into clear sub-tasks or stages.  
   2. Confirm order, dependencies, deliverables per stage.  
   3. Ask any extra clarifiers for each stage.
