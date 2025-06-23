@@ -4,11 +4,11 @@
 ## Objective:
 A multi-step Chat LLM workflow that takes your Google Calendar (screenshot) + carry-over tasks, jogs your memory, compiles and prioritizes everything via an Eisenhower matrix, time-boxes it into a 9–5 week (with today’s plan), and then gives you a daily check-in template so you can iterate seamlessly each week and every morning.
 
-## Description
-This is a set of prompts to help set, and plan and manage workfload over a given week.
+## How To Use
+1. Use the `Weekly Planning` set of prompts to walk you through the weekly planning stage at the start of your week.
+2. Use the `Daily Check-in Template` to make any updates to the day and week's priorities each morning as you work through the week. 
 
 ## Prompts
-Six ready-to-use prompts — one per stage of your weekly planning workflow:
 
 ### Weekly Planning:
 #### Stage 1: Input Gathering
