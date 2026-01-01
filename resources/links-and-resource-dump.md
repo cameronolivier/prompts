@@ -15,3 +15,11 @@ https://youtu.be/RFKCzGlAU6Q?si=-KwUPZ_lF90ofzDq
 they're doing awesome things!
 https://youtu.be/gvIAkmZUEZY?si=Lqu99bXOpbv_Ku7N
 
+### on Skills by the people who created them
+https://youtu.be/CEvIs9y1uog?si=RkhLLhi6X2JmNPrD
+
+### dynamic NotebookLM
+https://youtu.be/zR5XMIc4U6U?si=3FtapAquTcD_WuwL
+
+### building agent things
+https://youtu.be/X2ciJedw2vU?si=86PZBTMS4L4oHVJL
