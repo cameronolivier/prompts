@@ -6,7 +6,7 @@
 - ton of skill: https://github.com/ComposioHQ/awesome-claude-skills
 - claude skills explained: https://code.claude.com/docs/en/skills
 - official Claude skills: https://github.com/anthropics/skills
-
+- curated list of awesome skills: https://github.com/BehiSecc/awesome-claude-skills
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
