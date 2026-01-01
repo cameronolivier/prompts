@@ -3,6 +3,9 @@
 ## Skills
 - iOS development skills: https://github.com/Dimillian/Skills
 - iOS development skills from Pete: https://github.com/steipete/agent-scripts/blob/main/skills/native-app-performance/SKILL.md
+- ton of skill: https://github.com/ComposioHQ/awesome-claude-skills
+- claude skills explained: https://code.claude.com/docs/en/skills
+- official Claude skills: https://github.com/anthropics/skills
 
 ## Videos
 ### Quick Links
