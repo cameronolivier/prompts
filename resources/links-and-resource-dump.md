@@ -7,6 +7,11 @@
 - claude skills explained: https://code.claude.com/docs/en/skills
 - official Claude skills: https://github.com/anthropics/skills
 - curated list of awesome skills: https://github.com/BehiSecc/awesome-claude-skills
+
+## Claude Code
+- tip: ask your agent to create the necessarygit pre-cmit hooks for your prohect
+https://github.com/goodroot/hyprwhspr
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
