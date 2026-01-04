@@ -11,7 +11,10 @@
 ## Claude Code
 - tip: ask your agent to create the necessarygit pre-cmit hooks for your prohect
 
-## speech to tect open source
+## Links
+### agent dot files
+https://x.com/jessfraz/status/2007682934585864619?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+### speech to tect open source
 https://github.com/goodroot/hyprwhspr
 
 ## Videos
