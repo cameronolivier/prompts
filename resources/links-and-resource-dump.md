@@ -16,6 +16,7 @@
 https://x.com/jessfraz/status/2007682934585864619?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 ### speech to tect open source
 https://github.com/goodroot/hyprwhspr
+onboarding:https://productfruits.com/
 
 ## Videos
 ### Quick Links
