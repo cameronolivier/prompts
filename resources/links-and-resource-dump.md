@@ -18,6 +18,9 @@ https://x.com/jessfraz/status/2007682934585864619?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 https://github.com/goodroot/hyprwhspr
 onboarding:https://productfruits.com/
 
+### uninstall beaads script
+https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
