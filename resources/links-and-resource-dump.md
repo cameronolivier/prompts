@@ -17,6 +17,8 @@ https://x.com/jessfraz/status/2007682934585864619?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 ### speech to tect open source
 https://github.com/goodroot/hyprwhspr
 onboarding:https://productfruits.com/
+### claws bot
+https://github.com/clawdbot/clawdbot
 
 ### uninstall beaads script
 https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d
