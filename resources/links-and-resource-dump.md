@@ -7,7 +7,7 @@
 - claude skills explained: https://code.claude.com/docs/en/skills
 - official Claude skills: https://github.com/anthropics/skills
 - curated list of awesome skills: https://github.com/BehiSecc/awesome-claude-skills
-
+- https://github.com/Dimillian/Skills/commit/70a15d08db66972f628e4e210f9209a10bcacb70
 ## Claude Code
 - tip: ask your agent to create the necessarygit pre-cmit hooks for your prohect
 
