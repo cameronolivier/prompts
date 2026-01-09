@@ -21,6 +21,9 @@ https://github.com/goodroot/hyprwhspr
 onboarding:https://productfruits.com/
 ### claws bot
 https://github.com/clawdbot/clawdbot
+### lfg process
+https://x.com/kieranklaassen/status/2009496733320176027?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
 
 ### uninstall beaads script
 https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d
