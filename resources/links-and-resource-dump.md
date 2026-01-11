@@ -24,6 +24,8 @@ https://github.com/clawdbot/clawdbot
 ### lfg process
 https://x.com/kieranklaassen/status/2009496733320176027?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### tips on adding state machine diagrams to components with Claude 
+https://x.com/mert/status/2009986072953126935?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
 ### uninstall beaads script
 https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d
