@@ -33,6 +33,8 @@ https://gist.github.com/banteg/1a539b88b3c8945cd71e4b958f319d8d
 ### Design peompts
 https://x.com/jasonzhou1993/status/2008509772971339998?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### on building ui and using ralph loop
+https://x.com/maurice_kleine/status/2010257518681854168?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
 ## Videos
 ### Quick Links
