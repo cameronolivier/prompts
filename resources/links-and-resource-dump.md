@@ -36,6 +36,10 @@ https://x.com/jasonzhou1993/status/2008509772971339998?s=46&t=JJ4B8YUdEJeGxadNF0
 ### on building ui and using ralph loop
 https://x.com/maurice_kleine/status/2010257518681854168?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### haptic feedback library foot expo
+https://x.com/alireza_hadjar/status/2010691071601521038?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
