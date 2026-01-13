@@ -39,6 +39,8 @@ https://x.com/maurice_kleine/status/2010257518681854168?s=46&t=JJ4B8YUdEJeGxadNF
 ### haptic feedback library foot expo
 https://x.com/alireza_hadjar/status/2010691071601521038?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### matt pocock agents md for plan mode
+https://x.com/mattpocockuk/status/2011092347254182097?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
 ## Videos
 ### Quick Links
