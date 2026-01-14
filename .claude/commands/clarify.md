@@ -1,5 +1,5 @@
 ---
-name: clarify-requirements
+name: clarify
 description: Interview-driven requirements clarification for apps and features, outputs specification document
 ---
 
@@ -165,6 +165,6 @@ When ready, create the final specification document in `/plans/`:
 ## Example Invocation
 
 ```
-User: /clarify-requirements
+User: /clarify
 
 User: I want to build a habit tracking app
