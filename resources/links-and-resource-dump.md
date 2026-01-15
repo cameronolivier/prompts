@@ -10,6 +10,9 @@
 - https://github.com/Dimillian/Skills/commit/70a15d08db66972f628e4e210f9209a10bcacb70
 - https://x.com/bcherny/status/2009450715081789767?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 - threejs and nano banana skills https://github.com/chongdashu/cc-skills-nanobananapro
+### expo skills from Evan Bacon
+https://x.com/baconbrix/status/2011862532320084329?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
 ## Claude Code
 - tip: ask your agent to create the necessarygit pre-cmit hooks for your prohect
 
