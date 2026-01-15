@@ -42,6 +42,9 @@ https://x.com/alireza_hadjar/status/2010691071601521038?s=46&t=JJ4B8YUdEJeGxadNF
 ### matt pocock agents md for plan mode
 https://x.com/mattpocockuk/status/2011092347254182097?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### Vercel's browser agent to replace playwright mcp
+https://agent-browser.dev/
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
