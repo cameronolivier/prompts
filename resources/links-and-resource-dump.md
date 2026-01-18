@@ -53,6 +53,10 @@ https://agent-browser.dev/
 - https://kapeli.com/docsets
 - https://github.com/PaulSolt/DocSetQuery
 
+### hosted agent management system
+https://x.com/blackboxai/status/2012386609845727437?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
