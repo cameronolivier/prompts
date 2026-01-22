@@ -43,6 +43,8 @@ https://agent-browser.dev/
 ### hosted agent management system
 https://x.com/blackboxai/status/2012386609845727437?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
+### everything Claude code
+https://github.com/affaan-m/everything-claude-code
 
 ## Videos
 ### Quick Links
