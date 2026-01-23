@@ -1,6 +1,7 @@
 # Agent and AI Resources
 
-
+## tool inspection for web and agents
+https://x.com/benjitaylor/status/2014109590972145908?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 ## Claude Code
 - tip: ask your agent to create the necessarygit pre-cmit hooks for your prohect
 
