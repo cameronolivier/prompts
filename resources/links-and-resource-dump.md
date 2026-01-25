@@ -47,6 +47,10 @@ https://x.com/blackboxai/status/2012386609845727437?s=46&t=JJ4B8YUdEJeGxadNF0GsP
 ### everything Claude code
 https://github.com/affaan-m/everything-claude-code
 
+## adding identity and user files to give the agent context on who they are and WHO You are
+https://x.com/ganimcorey/status/2015415731622486254?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
+
 ## Videos
 ### Quick Links
 - iOS development with AI: https://x.com/paulsolt/status/2006485286528623065?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
