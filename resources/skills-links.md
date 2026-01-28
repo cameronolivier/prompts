@@ -14,7 +14,8 @@
 https://x.com/baconbrix/status/2011862532320084329?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 https://x.com/baconbrix/status/2011872694791520273?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
 
-
+### Ant Fu skills
+https://github.com/antfu/skills
 
 ## remotion skills
 https://x.com/remotion/status/2013626968386765291?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
