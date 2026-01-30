@@ -6,3 +6,6 @@ https://x.com/mattpocockuk/status/2009243550446469143?s=46&t=JJ4B8YUdEJeGxadNF0G
 
 getting going 
 https://x.com/ryancarson/status/2009631674984808783?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
+
+RAAALLLPH
+https://x.com/ryancarson/status/2016989269898768450?s=46&t=JJ4B8YUdEJeGxadNF0GsPw
