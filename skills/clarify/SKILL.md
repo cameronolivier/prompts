@@ -1,9 +1,9 @@
 ---
-name: grill-me
-description: Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "grill me", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning.
+name: clarify
+description: Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "clarify", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning.
 ---
 
-# Grill Me
+# Clarify
 
 Systematically interrogate a plan by walking each branch of the design tree, resolving dependencies between decisions one-by-one.
 

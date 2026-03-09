@@ -4,11 +4,11 @@ description: Relentlessly interrogate a plan or design until every gap is expose
 allowed-tools: AskUserQuestion, Read, Glob, Grep, Write, Edit
 ---
 
-# Grill Me
+# Clarify
 
-Invoke the `grill-me` skill on the user's input.
+Invoke the `clarify` skill on the user's input.
 
-The user will provide a plan, design, or proposal after this command. Pass their full input to the grill-me skill for rigorous interrogation.
+The user will provide a plan, design, or proposal after this command. Pass their full input to the clarify skill for rigorous interrogation.
 
 If no plan is provided inline, ask the user to paste or describe their plan.
 
