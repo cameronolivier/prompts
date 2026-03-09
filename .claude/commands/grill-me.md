@@ -1,6 +1,7 @@
 ---
 name: grill-me
 description: Relentlessly interrogate a plan or design until every gap is exposed
+allowed-tools: AskUserQuestion, Read, Glob, Grep, Write, Edit
 ---
 
 # Grill Me
