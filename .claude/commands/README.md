@@ -38,6 +38,19 @@ I want to build [your idea]
 3. Iterative refinement based on your answers
 4. Outputs final specification document
 
+### `/grill-me`
+Relentlessly interrogate a plan or design until every gap is exposed.
+
+**Usage:**
+```
+/grill-me [paste or describe your plan]
+```
+
+**Process:**
+1. Asks pointed questions about every aspect of your plan
+2. Challenges assumptions and identifies gaps
+3. Continues until shared understanding is reached
+
 ---
 
 ## Command Structure
