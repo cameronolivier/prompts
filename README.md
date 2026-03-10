@@ -19,6 +19,7 @@ Commands will be symlinked to `~/.claude/commands/` and available as `/command-n
 ## Repository Contents
 
 - **`.claude/commands/`** - Custom slash commands for Claude Code
+- **`commands/`** - Portable command files (copy to `~/.claude/commands/`)
 - **`dev/`** - Development prompts (editor rules, project templates, MCPs)
 - **`general/`** - General-purpose prompts
 - **`meta/`** - Prompt engineering tools (evaluate, refine)
