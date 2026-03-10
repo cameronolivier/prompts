@@ -8,21 +8,23 @@ This is a **prompt library** - a collection of markdown files containing reusabl
 
 ## Installation
 
-Install custom slash commands:
+Install commands and skills:
 ```bash
 ./install.sh           # Install all commands
 ./install.sh clarify   # Install specific command
+./install.sh -s clarify # Install specific skill
+./install.sh -s --all  # Install all skills
 ```
 
-Commands symlink to `~/.claude/commands/` and become available as `/command-name`.
+Commands symlink to `~/.claude/commands/`. Skills install via `npx skills add`.
 
 ## Repository Structure
 
 ```
-.claude/
-├── commands/           # Custom slash commands
-│   ├── clarify.md      # Requirements clarification interview
-│   └── README.md       # Command documentation
+commands/               # Custom slash commands
+├── clarify.md          # Plan interrogation command
+├── clarify-og.md       # Original requirements clarification
+└── README.md           # Command documentation
 
 dev/                    # Development-focused prompts
 ├── editors/            # Code editor rules (Cursor, Windsurf)
@@ -90,7 +92,7 @@ This repository has no package manager, build scripts, or tests. All operations 
 ## Architecture Notes
 
 **Prompt Categories**:
-- **Commands** (`.claude/commands/`): Custom slash commands with frontmatter (name/description), installed via `install.sh`
+- **Commands** (`commands/`): Custom slash commands with frontmatter (name/description), installed via `install.sh`
 - **Skills** (`skills/`): More complex `.SKILL.md` format behaviors
 - **Editor Rules** (`dev/editors/`): Templates for `.cursorrules`, global standards, etc.
 - **Project Templates** (`dev/projects/`): Prompts for generating architecture plans, PRDs, etc.
