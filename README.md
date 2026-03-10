@@ -21,7 +21,7 @@ Commands symlink to `~/.claude/commands/` and are available as `/command-name` i
 ./install.sh -s --all            # Install all skills
 ```
 
-Skills are installed via [`npx skills add`](https://github.com/vercel-labs/skills).
+Skills are installed via `npx skills add`. Powered by [Vercel Skills](https://github.com/vercel-labs/skills).
 
 ## Repository Contents
 
