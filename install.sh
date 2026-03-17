@@ -6,6 +6,8 @@
 set -e
 
 COMMANDS_DIR="$HOME/.claude/commands"
+SKILLS_DIR="$HOME/.claude/skills"
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_COMMANDS="commands"
 REPO_SKILLS="skills"
 REPO_URL="cameronolivier/prompts"
@@ -17,8 +19,9 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Ensure target directory exists
+# Ensure target directories exist
 mkdir -p "$COMMANDS_DIR"
+mkdir -p "$SKILLS_DIR"
 
 install_command() {
     local cmd_name="$1"
@@ -30,7 +33,10 @@ install_command() {
         return 1
     fi
 
-    ln -sf "$(pwd)/$source_file" "$target_file"
+    # Create parent dir for namespaced commands (e.g. cam/)
+    mkdir -p "$(dirname "$target_file")"
+
+    ln -sf "$REPO_DIR/$source_file" "$target_file"
     echo -e "${GREEN}✓${NC} Installed command: /${cmd_name}"
 }
 
@@ -46,7 +52,26 @@ uninstall_command() {
     fi
 }
 
-install_skill() {
+install_skill_symlink() {
+    local skill_name="$1"
+    local source_path="$REPO_DIR/$REPO_SKILLS/$skill_name"
+    local target_path="$SKILLS_DIR/$skill_name"
+
+    if [[ ! -d "$source_path" ]]; then
+        echo -e "${RED}Error: skill '$skill_name' not found in $REPO_SKILLS/${NC}"
+        return 1
+    fi
+
+    # Remove existing (file, symlink, or dir) and replace with symlink
+    if [[ -e "$target_path" ]] || [[ -L "$target_path" ]]; then
+        rm -rf "$target_path"
+    fi
+
+    ln -sf "$source_path" "$target_path"
+    echo -e "${GREEN}✓${NC} Installed skill (symlink): $skill_name"
+}
+
+install_skill_npx() {
     local skill_name="$1"
     local skill_path="$REPO_SKILLS/$skill_name"
 
@@ -62,9 +87,21 @@ install_skill() {
 
 list_available() {
     echo "Available commands:"
+    # Top-level commands
     for file in "$REPO_COMMANDS"/*.md; do
         if [[ -f "$file" && "$(basename "$file")" != "README.md" ]]; then
             echo "  - $(basename "$file" .md)"
+        fi
+    done
+    # Namespaced commands (e.g. cam/)
+    for dir in "$REPO_COMMANDS"/*/; do
+        if [[ -d "$dir" ]]; then
+            local ns=$(basename "$dir")
+            for file in "$dir"*.md; do
+                if [[ -f "$file" ]]; then
+                    echo "  - ${ns}/$(basename "$file" .md)"
+                fi
+            done
         fi
     done
     echo ""
@@ -86,11 +123,15 @@ show_help() {
     echo "  --list, -l        List available commands and skills"
     echo "  --help, -h        Show this help message"
     echo ""
+    echo "Skills install as symlinks to ~/.claude/skills/ by default."
+    echo "Use --npx to install via npx skills add instead."
+    echo ""
     echo "Examples:"
     echo "  $0                       # Install all commands"
     echo "  $0 clarify               # Install /clarify command"
-    echo "  $0 -s clarify            # Install clarify skill"
-    echo "  $0 -s --all              # Install all skills"
+    echo "  $0 -s clarify            # Install clarify skill (symlink)"
+    echo "  $0 -s --npx clarify      # Install clarify skill (npx)"
+    echo "  $0 -s --all              # Install all skills (symlinks)"
     echo "  $0 -u clarify            # Uninstall /clarify command"
 }
 
@@ -98,6 +139,7 @@ show_help() {
 MODE="install"
 TARGET="all"
 TYPE="commands"
+SKILL_METHOD="symlink"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -107,6 +149,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skills|-s)
             TYPE="skills"
+            shift
+            ;;
+        --npx)
+            SKILL_METHOD="npx"
             shift
             ;;
         --list|-l)
@@ -133,14 +179,24 @@ if [[ "$TYPE" == "skills" ]]; then
     if [[ "$TARGET" == "all" ]]; then
         for dir in "$REPO_SKILLS"/*/; do
             if [[ -d "$dir" ]]; then
-                install_skill "$(basename "$dir")"
+                skill_name="$(basename "$dir")"
+                if [[ "$SKILL_METHOD" == "npx" ]]; then
+                    install_skill_npx "$skill_name"
+                else
+                    install_skill_symlink "$skill_name"
+                fi
             fi
         done
     else
-        install_skill "$TARGET"
+        if [[ "$SKILL_METHOD" == "npx" ]]; then
+            install_skill_npx "$TARGET"
+        else
+            install_skill_symlink "$TARGET"
+        fi
     fi
 else
     if [[ "$TARGET" == "all" ]]; then
+        # Top-level commands
         for file in "$REPO_COMMANDS"/*.md; do
             if [[ -f "$file" && "$(basename "$file")" != "README.md" ]]; then
                 cmd_name=$(basename "$file" .md)
@@ -149,6 +205,22 @@ else
                 else
                     uninstall_command "$cmd_name"
                 fi
+            fi
+        done
+        # Namespaced commands (e.g. cam/)
+        for dir in "$REPO_COMMANDS"/*/; do
+            if [[ -d "$dir" ]]; then
+                ns=$(basename "$dir")
+                for file in "$dir"*.md; do
+                    if [[ -f "$file" ]]; then
+                        cmd_name="${ns}/$(basename "$file" .md)"
+                        if [[ "$MODE" == "install" ]]; then
+                            install_command "$cmd_name"
+                        else
+                            uninstall_command "$cmd_name"
+                        fi
+                    fi
+                done
             fi
         done
     else
