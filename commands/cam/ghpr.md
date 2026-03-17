@@ -29,13 +29,16 @@ Create a GitHub pull request using the template at `.github/pull_request_templat
      - **Additional Notes**: Any important context, breaking changes, or migration notes
      - **GIF**: Search Giphy API for a humorous, work-related GIF that relates to the PR topic if possible
 
-3. **Detect target branch:**
-   - Check git config for tracking branch
-   - Default to `main` if unable to determine
-   - Use the detected base branch for the PR
+3. **Issue closure:**
+   - If the branch name starts with an issue number (e.g., `12-s3-bucket-setup`), include `Closes #12` in the PR body so the issue auto-closes on merge.
 
-4. **Create the PR:**
+4. **Detect branches:**
+   - **Head branch:** Run `git branch --show-current` to get the exact current branch name. You MUST use this value as `--head` when creating the PR.
+   - **Base branch:** Query the repo default branch via `gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'`. Fall back to `main` if the query fails. Also check git config for tracking branch override.
+
+5. **Create the PR:**
    - Use `gh pr create` with the generated description
+   - **CRITICAL:** Always pass `--head <current-branch>` and `--base <target-branch>` explicitly. Never rely on implicit branch detection — this causes wrong-branch PRs when running in worktrees.
    - Include ticket ID prefix in PR title (e.g., "DEC-121 - Make chat mobile friendly")
    - Return the PR URL when complete
 
