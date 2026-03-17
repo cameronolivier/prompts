@@ -123,15 +123,15 @@ show_help() {
     echo "  --list, -l        List available commands and skills"
     echo "  --help, -h        Show this help message"
     echo ""
-    echo "Skills install as symlinks to ~/.claude/skills/ by default."
-    echo "Use --npx to install via npx skills add instead."
+    echo "Skills install via npx skills add by default."
+    echo "Use --symlink to install as direct symlinks instead."
     echo ""
     echo "Examples:"
     echo "  $0                       # Install all commands"
     echo "  $0 clarify               # Install /clarify command"
-    echo "  $0 -s clarify            # Install clarify skill (symlink)"
-    echo "  $0 -s --npx clarify      # Install clarify skill (npx)"
-    echo "  $0 -s --all              # Install all skills (symlinks)"
+    echo "  $0 -s clarify            # Install clarify skill (npx)"
+    echo "  $0 -s --symlink clarify  # Install clarify skill (symlink)"
+    echo "  $0 -s --all              # Install all skills (npx)"
     echo "  $0 -u clarify            # Uninstall /clarify command"
 }
 
@@ -139,7 +139,7 @@ show_help() {
 MODE="install"
 TARGET="all"
 TYPE="commands"
-SKILL_METHOD="symlink"
+SKILL_METHOD="npx"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -151,8 +151,8 @@ while [[ $# -gt 0 ]]; do
             TYPE="skills"
             shift
             ;;
-        --npx)
-            SKILL_METHOD="npx"
+        --symlink)
+            SKILL_METHOD="symlink"
             shift
             ;;
         --list|-l)
@@ -180,18 +180,18 @@ if [[ "$TYPE" == "skills" ]]; then
         for dir in "$REPO_SKILLS"/*/; do
             if [[ -d "$dir" ]]; then
                 skill_name="$(basename "$dir")"
-                if [[ "$SKILL_METHOD" == "npx" ]]; then
-                    install_skill_npx "$skill_name"
-                else
+                if [[ "$SKILL_METHOD" == "symlink" ]]; then
                     install_skill_symlink "$skill_name"
+                else
+                    install_skill_npx "$skill_name"
                 fi
             fi
         done
     else
-        if [[ "$SKILL_METHOD" == "npx" ]]; then
-            install_skill_npx "$TARGET"
-        else
+        if [[ "$SKILL_METHOD" == "symlink" ]]; then
             install_skill_symlink "$TARGET"
+        else
+            install_skill_npx "$TARGET"
         fi
     fi
 else
