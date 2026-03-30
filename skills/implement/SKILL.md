@@ -8,7 +8,7 @@ description: |
   user: "Implement issue #12"
   assistant: "I'll use the implement agent to work on issue #12 in an isolated worktree."
   <commentary>
-  The user wants a specific issue implemented. The implement agent handles the full lifecycle: branch creation, TDD implementation, ADR generation, push, and PR creation.
+  The user wants a specific issue implemented. The implement agent handles the full lifecycle: worktree creation, TDD implementation, ADR generation, push, and PR creation.
   </commentary>
   </example>
 
@@ -24,9 +24,9 @@ description: |
   <example>
   Context: The /work orchestrator dispatches this agent for each issue in a batch
   user: "[dispatched by orchestrator with issue context]"
-  assistant: "Implementing issue #8 — creating branch, following TDD workflow."
+  assistant: "Implementing issue #8 — following TDD workflow in worktree."
   <commentary>
-  When dispatched by /work, the agent receives full issue context and works autonomously in an isolated worktree.
+  When dispatched by /work via `claude --worktree`, the agent is already in an isolated worktree and works autonomously.
   </commentary>
   </example>
 allowed-tools:
@@ -37,6 +37,8 @@ allowed-tools:
   - Grep
   - Bash
   - Skill
+  - EnterWorktree
+  - ExitWorktree
 skills:
   - create-pr
   - tdd
@@ -64,9 +66,11 @@ Identify the monorepo structure if applicable (workspaces, packages, services di
 
 ## Status File
 
-Absolute path: `../trees/status/issue-<n>.json`
+Detect the main repo root (the first line from `git worktree list --porcelain | head -1 | sed 's/^worktree //'`).
 
-Update this file at each lifecycle stage. The file is created by `/work` with status `pending`.
+Status file absolute path: `<main-repo-root>/.claude/worktrees/status/issue-<n>.json`
+
+Update this file at each lifecycle stage. The file is created by `/work` with status `pending`. If running standalone (no status file exists), create the status directory and file yourself.
 
 ## Input
 
@@ -80,14 +84,25 @@ gh issue view <number> --json number,title,body,labels
 
 ### 1. Setup
 
-Check for an existing branch for this issue:
+**Determine if you're already in a worktree:**
+
+```bash
+git rev-parse --show-toplevel
+git worktree list --porcelain
+```
+
+- **If already in a `.claude/worktrees/` path:** You were spawned by `/work` via `claude --worktree`. You're ready to go — skip worktree creation.
+- **If in the main repo:** You're running standalone. Use the `EnterWorktree` tool to create an isolated worktree:
+  - Name: `<issue-number>-<slug>` (e.g., `42-add-auth`)
+
+**Check for an existing branch:**
 
 ```bash
 git branch -a | grep -E "(^|/)(<issue-number>)-"
 ```
 
 - **If branch exists:** You're resuming. Run tests to assess state, read recent commits via `git log --oneline -10`. Continue from current state.
-- **If no branch:** You're starting fresh. The worktree and branch were created by `/work`.
+- **If no branch:** Starting fresh.
 
 Update status file to `in_progress`:
 
@@ -160,7 +175,7 @@ Before pushing, verify you're on the correct branch:
 git branch --show-current
 ```
 
-Confirm the branch name matches the expected pattern for this issue (e.g., `<issue-number>-<slug>`). If it doesn't match, something went wrong — stop and report failure.
+Confirm the branch name matches the expected pattern for this issue (e.g., `worktree-<issue>-<slug>` or `<issue>-<slug>`). If it doesn't match, something went wrong — stop and report failure.
 
 ```bash
 git push -u origin <branch-name>
@@ -190,6 +205,8 @@ Notify via cmux (if available):
 ```bash
 cmux notify --title "Issue #<n> done" --body "PR: <pr-url>"
 ```
+
+**Worktree cleanup:** Do NOT exit or remove the worktree yourself. The worktree will be cleaned up by `/work cleanup` or by the user when they exit the Claude session (Claude prompts keep/remove on exit).
 
 ## Error Handling
 
