@@ -68,7 +68,7 @@ Include safe candidates from the next phase.
 
 ### Step 5: Exclude Active Agents
 
-Read all files matching `.claude/worktrees/status/issue-*.json`. Exclude any issue numbers that have `pending` or `in_progress` status from the current batch.
+Read all files matching `.olvrcc/status/issue-*.json`. Exclude any issue numbers that have `pending` or `in_progress` status from the current batch.
 
 ### Step 6: Determine Parallelism
 
@@ -87,10 +87,10 @@ For each issue in the batch:
 1. **Create status directory and file:**
 
    ```bash
-   mkdir -p .claude/worktrees/status
+   mkdir -p .olvrcc/status
    ```
 
-   Write `.claude/worktrees/status/issue-<n>.json`:
+   Write `.olvrcc/status/issue-<n>.json`:
 
    ```json
    {
@@ -149,7 +149,7 @@ Print a summary table:
 
 ## Status Mode (`/work status`)
 
-1. Glob for `.claude/worktrees/status/issue-*.json`
+1. Glob for `.olvrcc/status/issue-*.json`
 2. Read each file, parse JSON
 3. Print summary table:
 
@@ -162,7 +162,7 @@ Print a summary table:
 
 ## Cleanup Mode (`/work cleanup`)
 
-1. Glob for `.claude/worktrees/status/issue-*.json`
+1. Glob for `.olvrcc/status/issue-*.json`
 2. Read each file, filter to `complete` or `failed` status
 3. For each, ask the user: "Issue #N (<status>, PR #X) — clean up? (y/n)"
 4. If yes:
@@ -182,5 +182,5 @@ Print a summary table:
       git branch -D worktree-<issue>-<slug>
       ```
       If the worktree has uncommitted changes, prompt the user before force-removing with `--force`.
-   d. **Delete status file:** `rm .claude/worktrees/status/issue-<n>.json`
+   d. **Delete status file:** `rm .olvrcc/status/issue-<n>.json`
 5. If no completed/failed agents, print "Nothing to clean up"
