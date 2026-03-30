@@ -68,7 +68,7 @@ Identify the monorepo structure if applicable (workspaces, packages, services di
 
 Detect the main repo root (the first line from `git worktree list --porcelain | head -1 | sed 's/^worktree //'`).
 
-Status file absolute path: `<main-repo-root>/.claude/worktrees/status/issue-<n>.json`
+Status file absolute path: `<main-repo-root>/.olvrcc/status/issue-<n>.json`
 
 Update this file at each lifecycle stage. The file is created by `/work` with status `pending`. If running standalone (no status file exists), create the status directory and file yourself.
 
