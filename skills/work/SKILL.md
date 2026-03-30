@@ -37,7 +37,7 @@ command -v cmux && echo "cmux" || (command -v tmux && echo "tmux" || echo "none"
 
 - **cmux** → preferred, richer UI
 - **tmux** → fallback, widely available
-- **none** → abort with error: "No terminal multiplexer found. Install cmux or tmux."
+- **none** → **stop immediately** and tell the user: "cmux or tmux is required to run /work. Install one and try again." Do not proceed.
 
 Store the result as `$DISPATCH` for use in later steps.
 
