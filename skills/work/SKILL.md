@@ -1,6 +1,6 @@
 ---
 name: work
-description: Orchestrate GitHub issue implementation via cmux tabs and git worktrees. Supports subcommands - `/work <labels>` (orchestrate), `/work status` (check progress), `/work cleanup` (tear down). Use when user wants to batch-implement GitHub issues, check agent status, or clean up completed worktrees.
+description: Orchestrate GitHub issue implementation via cmux tabs and Claude's built-in git worktrees. Supports subcommands - `/work <labels>` (orchestrate), `/work status` (check progress), `/work cleanup` (tear down). Use when user wants to batch-implement GitHub issues, check agent status, or clean up completed worktrees.
 allowed-tools:
   - Read
   - Write
@@ -68,7 +68,7 @@ Include safe candidates from the next phase.
 
 ### Step 5: Exclude Active Agents
 
-Read all files matching `../trees/status/issue-*.json`. Exclude any issue numbers that have `pending` or `in_progress` status from the current batch.
+Read all files matching `.claude/worktrees/status/issue-*.json`. Exclude any issue numbers that have `pending` or `in_progress` status from the current batch.
 
 ### Step 6: Determine Parallelism
 
@@ -84,36 +84,27 @@ Maximum 4-5 concurrent agents.
 
 For each issue in the batch:
 
-1. **Create worktree:**
+1. **Create status directory and file:**
 
    ```bash
-   cd .
-   git worktree add ../trees/<issue>-<slug> -b <issue>-<slug>
-   # If branch already exists:
-   # git worktree add ../trees/<issue>-<slug> <issue>-<slug>
+   mkdir -p .claude/worktrees/status
    ```
 
-2. **Create status directory and file:**
-
-   ```bash
-   mkdir -p ../trees/status
-   ```
-
-   Write `../trees/status/issue-<n>.json`:
+   Write `.claude/worktrees/status/issue-<n>.json`:
 
    ```json
    {
      "issue": <n>,
      "title": "<title>",
      "status": "pending",
-     "branch": "<issue>-<slug>",
-     "worktree": "trees/<issue>-<slug>",
+     "branch": "worktree-<issue>-<slug>",
+     "worktree": ".claude/worktrees/<issue>-<slug>",
      "cmuxWorkspace": null,
      "cmuxSurface": null
    }
    ```
 
-3. **Create cmux workspace:**
+2. **Create cmux workspace:**
 
    ```bash
    cmux --json new-workspace
@@ -121,7 +112,7 @@ For each issue in the batch:
 
    Parse the workspace UUID from JSON output.
 
-4. **Get surface reference:**
+3. **Get surface reference:**
 
    ```bash
    cmux --json list-pane-surfaces --workspace <uuid>
@@ -129,17 +120,19 @@ For each issue in the batch:
 
    Parse the surface ref (e.g., `surface:32`).
 
-5. **Update status file** with `cmuxWorkspace` and `cmuxSurface` values.
+4. **Update status file** with `cmuxWorkspace` and `cmuxSurface` values.
 
-6. **Send Claude command:**
+5. **Send Claude command with worktree flag:**
+
+   Claude's built-in `--worktree` (`-w`) flag creates an isolated worktree at `.claude/worktrees/<name>` and branches from `origin/HEAD`:
 
    ```bash
-   cmux send --surface <ref> "cd ../trees/<issue>-<slug> && claude\n"
+   cmux send --surface <ref> "claude --worktree <issue>-<slug>\n"
    ```
 
-7. **Wait for Claude to boot:** Poll with `cmux read-screen --surface <ref>` until the Claude prompt is visible. Timeout after 30 seconds.
+6. **Wait for Claude to boot:** Poll with `cmux read-screen --surface <ref>` until the Claude prompt is visible. Timeout after 30 seconds.
 
-8. **Send implement command:**
+7. **Send implement command:**
    ```bash
    cmux send --surface <ref> "/implement <issue-number>\n"
    ```
@@ -150,13 +143,13 @@ Print a summary table:
 
 | Issue | Title | Branch | cmux Surface |
 | ----- | ----- | ------ | ------------ |
-| #N    | Title | branch | surface:N    |
+| #N    | Title | worktree-\<issue\>-\<slug\> | surface:N |
 
 **Stop here.** The user monitors progress via `/work status` and cleans up via `/work cleanup`.
 
 ## Status Mode (`/work status`)
 
-1. Glob for `../trees/status/issue-*.json`
+1. Glob for `.claude/worktrees/status/issue-*.json`
 2. Read each file, parse JSON
 3. Print summary table:
 
@@ -169,11 +162,16 @@ Print a summary table:
 
 ## Cleanup Mode (`/work cleanup`)
 
-1. Glob for `../trees/status/issue-*.json`
+1. Glob for `.claude/worktrees/status/issue-*.json`
 2. Read each file, filter to `complete` or `failed` status
 3. For each, ask the user: "Issue #N (<status>, PR #X) — clean up? (y/n)"
 4. If yes:
    a. Close cmux workspace: `cmux close-workspace --workspace <uuid>` (ignore errors if workspace already closed)
-   b. Remove worktree: `cd . && git worktree remove ../trees/<issue>-<slug>`
-   c. Delete status file: `rm ../trees/status/issue-<n>.json`
+   b. Remove worktree and its branch:
+      ```bash
+      git worktree remove .claude/worktrees/<issue>-<slug>
+      git branch -D worktree-<issue>-<slug>
+      ```
+      If the worktree has uncommitted changes, prompt the user before force-removing with `--force`.
+   c. Delete status file: `rm .claude/worktrees/status/issue-<n>.json`
 5. If no completed/failed agents, print "Nothing to clean up"
