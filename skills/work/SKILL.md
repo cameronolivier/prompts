@@ -1,6 +1,6 @@
 ---
 name: work
-description: Orchestrate GitHub issue implementation via cmux tabs and Claude's built-in git worktrees. Supports subcommands - `/work <labels>` (orchestrate), `/work status` (check progress), `/work cleanup` (tear down). Use when user wants to batch-implement GitHub issues, check agent status, or clean up completed worktrees.
+description: Orchestrate GitHub issue implementation via parallel terminal sessions and git worktrees. Supports subcommands - `/work <labels>` (orchestrate), `/work status` (check progress), `/work cleanup` (tear down). Use when user wants to batch-implement GitHub issues, check agent status, or clean up completed worktrees.
 allowed-tools:
   - Read
   - Write
@@ -8,6 +8,7 @@ allowed-tools:
   - Bash(gh issue list *)
   - Bash(gh issue view *)
   - Bash(cmux *)
+  - Bash(tmux *)
   - Bash(git worktree *)
   - Bash(git branch *)
   - Grep
@@ -25,6 +26,20 @@ Parse `$ARGUMENTS`:
 - First arg is `status` → Status mode
 - First arg is `cleanup` → Cleanup mode
 - Otherwise → Orchestrate mode (args are GitHub labels)
+
+## Dispatch Method Detection
+
+Before spawning agents, detect the available terminal multiplexer:
+
+```bash
+command -v cmux && echo "cmux" || (command -v tmux && echo "tmux" || echo "none")
+```
+
+- **cmux** → preferred, richer UI
+- **tmux** → fallback, widely available
+- **none** → abort with error: "No terminal multiplexer found. Install cmux or tmux."
+
+Store the result as `$DISPATCH` for use in later steps.
 
 ## Orchestrate Mode (`/work <labels>`)
 
@@ -80,31 +95,38 @@ Maximum 4-5 concurrent agents.
 - Issues in different packages → **parallel candidate**
 - If uncertain about overlap → **serial** (conservative default)
 
-### Step 7: Spawn Agents
+### Step 7: Create Status Files
 
 For each issue in the batch:
 
-1. **Create status directory and file:**
+```bash
+mkdir -p .olvrcc/status
+```
 
-   ```bash
-   mkdir -p .olvrcc/status
-   ```
+Write `.olvrcc/status/issue-<n>.json`:
 
-   Write `.olvrcc/status/issue-<n>.json`:
+```json
+{
+  "issue": <n>,
+  "title": "<title>",
+  "status": "pending",
+  "branch": "worktree-<issue>-<slug>",
+  "worktree": ".claude/worktrees/<issue>-<slug>",
+  "dispatch": "<cmux|tmux>",
+  "session": null
+}
+```
 
-   ```json
-   {
-     "issue": <n>,
-     "title": "<title>",
-     "status": "pending",
-     "branch": "worktree-<issue>-<slug>",
-     "worktree": ".claude/worktrees/<issue>-<slug>",
-     "cmuxWorkspace": null,
-     "cmuxSurface": null
-   }
-   ```
+The `session` field stores the cmux workspace UUID or tmux session name, set during spawn.
 
-2. **Create cmux workspace:**
+### Step 8: Spawn Agents
+
+For each issue, follow the dispatch method below:
+
+<details>
+<summary><strong>cmux dispatch</strong></summary>
+
+1. **Create cmux workspace:**
 
    ```bash
    cmux --json new-workspace
@@ -112,7 +134,7 @@ For each issue in the batch:
 
    Parse the workspace UUID from JSON output.
 
-3. **Get surface reference:**
+2. **Get surface reference:**
 
    ```bash
    cmux --json list-pane-surfaces --workspace <uuid>
@@ -120,30 +142,62 @@ For each issue in the batch:
 
    Parse the surface ref (e.g., `surface:32`).
 
-4. **Update status file** with `cmuxWorkspace` and `cmuxSurface` values.
+3. **Update status file** — set `session` to the workspace UUID. Also store the surface ref in the status file as `"surface": "<ref>"`.
 
-5. **Send Claude command with worktree flag:**
-
-   Claude's built-in `--worktree` (`-w`) flag creates an isolated worktree at `.claude/worktrees/<name>` and branches from `origin/HEAD`:
+4. **Send Claude command with worktree flag:**
 
    ```bash
    cmux send --surface <ref> "claude --worktree <issue>-<slug>\n"
    ```
 
-6. **Wait for Claude to boot:** Poll with `cmux read-screen --surface <ref>` until the Claude prompt is visible. Timeout after 30 seconds.
+5. **Wait for Claude to boot:** Poll with `cmux read-screen --surface <ref>` until the Claude prompt is visible. Timeout after 30 seconds.
 
-7. **Send implement command:**
+6. **Send implement command:**
+
    ```bash
    cmux send --surface <ref> "/implement <issue-number>\n"
    ```
 
-### Step 8: Report
+</details>
+
+<details>
+<summary><strong>tmux dispatch</strong></summary>
+
+1. **Create tmux session:**
+
+   ```bash
+   tmux new-session -d -s "work-<issue>-<slug>"
+   ```
+
+2. **Update status file** — set `session` to `"work-<issue>-<slug>"`.
+
+3. **Send Claude command with worktree flag:**
+
+   ```bash
+   tmux send-keys -t "work-<issue>-<slug>" "claude --worktree <issue>-<slug>" Enter
+   ```
+
+4. **Wait for Claude to boot:** Poll with `tmux capture-pane -t "work-<issue>-<slug>" -p` until the Claude prompt is visible. Timeout after 30 seconds.
+
+5. **Send implement command:**
+
+   ```bash
+   tmux send-keys -t "work-<issue>-<slug>" "/implement <issue-number>" Enter
+   ```
+
+**User interaction:** The user can attach to any session with `tmux attach -t "work-<issue>-<slug>"` and detach with `Ctrl+B, D`.
+
+</details>
+
+### Step 9: Report
 
 Print a summary table:
 
-| Issue | Title | Branch | cmux Surface |
-| ----- | ----- | ------ | ------------ |
-| #N    | Title | worktree-\<issue\>-\<slug\> | surface:N |
+| Issue | Title | Branch | Session |
+| ----- | ----- | ------ | ------- |
+| #N    | Title | worktree-\<issue\>-\<slug\> | \<cmux surface or tmux session name\> |
+
+If using tmux, also print: `Attach with: tmux attach -t "work-<issue>-<slug>"`
 
 **Stop here.** The user monitors progress via `/work status` and cleans up via `/work cleanup`.
 
@@ -153,10 +207,10 @@ Print a summary table:
 2. Read each file, parse JSON
 3. Print summary table:
 
-| Issue | Title | Status      | Branch      | PR     |
-| ----- | ----- | ----------- | ----------- | ------ |
-| #N    | Title | in_progress | branch-name | —      |
-| #M    | Title | complete    | branch-name | PR #42 |
+| Issue | Title | Status      | Branch      | Session | PR     |
+| ----- | ----- | ----------- | ----------- | ------- | ------ |
+| #N    | Title | in_progress | branch-name | session | —      |
+| #M    | Title | complete    | branch-name | session | PR #42 |
 
 4. If no status files exist, print "No active agents"
 
@@ -165,22 +219,51 @@ Print a summary table:
 1. Glob for `.olvrcc/status/issue-*.json`
 2. Read each file, filter to `complete` or `failed` status
 3. For each, ask the user: "Issue #N (<status>, PR #X) — clean up? (y/n)"
-4. If yes:
-   a. **Exit Claude session** in the surface (if still running) so the worktree is released:
+4. If yes, follow the teardown for the `dispatch` method stored in the status file:
+
+<details>
+<summary><strong>cmux teardown</strong></summary>
+
+   a. **Exit Claude session:**
       ```bash
-      cmux send --surface <ref> "/exit\n"
+      cmux send --surface <surface> "/exit\n"
       ```
-      Wait briefly for Claude to exit (poll `cmux read-screen --surface <ref>` for shell prompt, timeout 10s).
-   b. **Close cmux workspace** (terminates the terminal/window):
+      Poll `cmux read-screen --surface <surface>` for shell prompt, timeout 10s.
+
+   b. **Close cmux workspace:**
       ```bash
-      cmux close-workspace --workspace <uuid>
+      cmux close-workspace --workspace <session>
       ```
-      Ignore errors if workspace already closed.
+      Ignore errors if already closed.
+
+</details>
+
+<details>
+<summary><strong>tmux teardown</strong></summary>
+
+   a. **Exit Claude session:**
+      ```bash
+      tmux send-keys -t "<session>" "/exit" Enter
+      ```
+      Poll `tmux capture-pane -t "<session>" -p` for shell prompt, timeout 10s.
+
+   b. **Kill tmux session:**
+      ```bash
+      tmux kill-session -t "<session>"
+      ```
+      Ignore errors if already closed.
+
+</details>
+
+Then regardless of dispatch method:
+
    c. **Remove worktree and its branch:**
       ```bash
       git worktree remove .claude/worktrees/<issue>-<slug>
       git branch -D worktree-<issue>-<slug>
       ```
       If the worktree has uncommitted changes, prompt the user before force-removing with `--force`.
+
    d. **Delete status file:** `rm .olvrcc/status/issue-<n>.json`
+
 5. If no completed/failed agents, print "Nothing to clean up"
