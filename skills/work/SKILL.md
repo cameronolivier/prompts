@@ -166,12 +166,21 @@ Print a summary table:
 2. Read each file, filter to `complete` or `failed` status
 3. For each, ask the user: "Issue #N (<status>, PR #X) — clean up? (y/n)"
 4. If yes:
-   a. Close cmux workspace: `cmux close-workspace --workspace <uuid>` (ignore errors if workspace already closed)
-   b. Remove worktree and its branch:
+   a. **Exit Claude session** in the surface (if still running) so the worktree is released:
+      ```bash
+      cmux send --surface <ref> "/exit\n"
+      ```
+      Wait briefly for Claude to exit (poll `cmux read-screen --surface <ref>` for shell prompt, timeout 10s).
+   b. **Close cmux workspace** (terminates the terminal/window):
+      ```bash
+      cmux close-workspace --workspace <uuid>
+      ```
+      Ignore errors if workspace already closed.
+   c. **Remove worktree and its branch:**
       ```bash
       git worktree remove .claude/worktrees/<issue>-<slug>
       git branch -D worktree-<issue>-<slug>
       ```
       If the worktree has uncommitted changes, prompt the user before force-removing with `--force`.
-   c. Delete status file: `rm .claude/worktrees/status/issue-<n>.json`
+   d. **Delete status file:** `rm .claude/worktrees/status/issue-<n>.json`
 5. If no completed/failed agents, print "Nothing to clean up"
