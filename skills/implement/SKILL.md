@@ -110,12 +110,13 @@ Update status file to `in_progress`:
 { "status": "in_progress" }
 ```
 
-### 2. Gather Context
+### 2. Gather Context & Plan
 
-- Read the issue body carefully — identify acceptance criteria
+- Read the issue body **thoroughly** — identify every acceptance criterion, edge case, and constraint
 - Find and read any relevant plan files (e.g., `docs/`, `plans/`, `PLAN-*.md`)
 - Read existing code in the areas you'll be modifying
 - Identify which workspace package(s) this issue touches
+- **Draft a brief implementation plan** — this becomes the PR description later. Outline what you'll change, in what order, and why.
 
 ### 3. Implement Using TDD
 
@@ -167,7 +168,18 @@ pnpm turbo run lint      # or: eslint, ruff, clippy, golangci-lint
 
 All checks must pass before proceeding. If any fail, fix and re-run.
 
-### 7. Push & Create PR
+### 7. Pre-Push Review
+
+Review the branch against main before pushing. For each changed file:
+
+1. **Type safety** — verify no `any` escapes, correct generics, proper nullability
+2. **Imports** — confirm all imports resolve, no unused imports, no circular deps
+3. **Dead code** — remove unreachable code, unused variables, commented-out blocks
+4. **Test coverage** — ensure every changed code path has a corresponding test
+
+Fix any issues found, commit, and re-run the full test suite.
+
+### 8. Push & Create PR
 
 Before pushing, verify you're on the correct branch:
 
@@ -181,9 +193,24 @@ Confirm the branch name matches the expected pattern for this issue (e.g., `work
 git push -u origin <branch-name>
 ```
 
-Then create the PR: run `/create-pr`
+Create the PR using the implementation plan as the description body. Run `/create-pr`.
 
-### 8. Complete
+### 9. Post-PR Review & CI
+
+After PR creation:
+
+1. Run `/review` on the PR — fix any findings and push
+2. Run `/security-review` if available — fix any findings and push
+3. Monitor CI status via `gh pr checks <pr-number> --watch`
+   - If CI fails: read logs with `gh pr checks <pr-number>`, fix issues, push again
+4. Monitor for CodeRabbit or reviewer comments:
+   ```bash
+   gh pr view <pr-number> --json reviews,comments
+   gh api repos/{owner}/{repo}/pulls/<pr-number>/comments
+   ```
+   - Address each comment, push fixes, re-run checks until approved
+
+### 10. Complete
 
 Update status file to `complete`:
 
