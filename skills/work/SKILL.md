@@ -161,21 +161,27 @@ For each issue:
    ```
    Parse the workspace UUID.
 
-2. **Get surface reference:**
+2. **Name the workspace:**
+   ```bash
+   cmux rename-workspace --workspace <uuid> "#<issue> - <title>"
+   ```
+   Truncate the title if needed to keep it readable in the sidebar.
+
+3. **Get surface reference:**
    ```bash
    cmux --json list-pane-surfaces --workspace <uuid>
    ```
 
-3. **Update status file** — set `session` to workspace UUID, store `"surface": "<ref>"`.
+4. **Update status file** — set `session` to workspace UUID, store `"surface": "<ref>"`.
 
-4. **Send Claude with worktree:**
+5. **Send Claude with worktree:**
    ```bash
    cmux send --surface <ref> "claude --worktree <issue>-<slug>\n"
    ```
 
-5. **Wait for boot:** Poll `cmux read-screen --surface <ref>` for Claude prompt. Timeout 30s.
+6. **Wait for boot:** Poll `cmux read-screen --surface <ref>` for Claude prompt. Timeout 30s.
 
-6. **Send implement:**
+7. **Send implement:**
    ```bash
    cmux send --surface <ref> "/implement <issue-number>\n"
    ```
@@ -192,16 +198,21 @@ For each issue:
    tmux new-session -d -s "work-<issue>-<slug>"
    ```
 
-2. **Update status file** — set `session` to `"work-<issue>-<slug>"`.
+2. **Name the session window** for easy identification:
+   ```bash
+   tmux rename-window -t "work-<issue>-<slug>" "#<issue> - <title>"
+   ```
 
-3. **Send Claude with worktree:**
+3. **Update status file** — set `session` to `"work-<issue>-<slug>"`.
+
+4. **Send Claude with worktree:**
    ```bash
    tmux send-keys -t "work-<issue>-<slug>" "claude --worktree <issue>-<slug>" Enter
    ```
 
-4. **Wait for boot:** Poll `tmux capture-pane -t "work-<issue>-<slug>" -p` for Claude prompt. Timeout 30s.
+5. **Wait for boot:** Poll `tmux capture-pane -t "work-<issue>-<slug>" -p` for Claude prompt. Timeout 30s.
 
-5. **Send implement:**
+6. **Send implement:**
    ```bash
    tmux send-keys -t "work-<issue>-<slug>" "/implement <issue-number>" Enter
    ```
