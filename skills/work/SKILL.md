@@ -125,7 +125,32 @@ Store as `$DISPATCH`.
 
 For each wave:
 
-### 6a. Create Status Files
+### 6a. Create Worktrees
+
+For each issue, create a worktree manually (gives us clean branch names without the `worktree-` prefix):
+
+```bash
+mkdir -p .claude/worktrees
+git worktree add .claude/worktrees/<issue>-<slug> -b <issue>-<slug>
+```
+
+If the branch already exists (resuming):
+```bash
+git worktree add .claude/worktrees/<issue>-<slug> <issue>-<slug>
+```
+
+**Copy gitignored files:** If a `.worktreeinclude` file exists in the repo root, copy matching gitignored files into the worktree (e.g., `.env`, `.env.local`):
+```bash
+if [ -f .worktreeinclude ]; then
+  while IFS= read -r pattern; do
+    for f in $pattern; do
+      [ -f "$f" ] && cp "$f" ".claude/worktrees/<issue>-<slug>/$f"
+    done
+  done < .worktreeinclude
+fi
+```
+
+### 6b. Create Status Files
 
 ```bash
 mkdir -p .olvrcc/status
@@ -138,7 +163,7 @@ Write `.olvrcc/status/issue-<n>.json` for each issue:
   "issue": <n>,
   "title": "<title>",
   "status": "pending",
-  "branch": "worktree-<issue>-<slug>",
+  "branch": "<issue>-<slug>",
   "worktree": ".claude/worktrees/<issue>-<slug>",
   "dispatch": "<cmux|tmux|agent>",
   "wave": <wave-number>,
@@ -146,7 +171,7 @@ Write `.olvrcc/status/issue-<n>.json` for each issue:
 }
 ```
 
-### 6b. Spawn Agents
+### 6c. Spawn Agents
 
 Launch all agents in the current wave in parallel, using the detected dispatch method:
 
@@ -174,9 +199,9 @@ For each issue:
 
 4. **Update status file** — set `session` to workspace UUID, store `"surface": "<ref>"`.
 
-5. **Send Claude with worktree:**
+5. **Start Claude in the worktree:**
    ```bash
-   cmux send --surface <ref> "claude --worktree <issue>-<slug>\n"
+   cmux send --surface <ref> "cd .claude/worktrees/<issue>-<slug> && claude\n"
    ```
 
 6. **Wait for boot:** Poll `cmux read-screen --surface <ref>` for Claude prompt. Timeout 30s.
@@ -198,16 +223,16 @@ For each issue:
    tmux new-session -d -s "work-<issue>-<slug>"
    ```
 
-2. **Name the session window** for easy identification:
+2. **Name the session window:**
    ```bash
    tmux rename-window -t "work-<issue>-<slug>" "#<issue> - <title>"
    ```
 
 3. **Update status file** — set `session` to `"work-<issue>-<slug>"`.
 
-4. **Send Claude with worktree:**
+4. **Start Claude in the worktree:**
    ```bash
-   tmux send-keys -t "work-<issue>-<slug>" "claude --worktree <issue>-<slug>" Enter
+   tmux send-keys -t "work-<issue>-<slug>" "cd .claude/worktrees/<issue>-<slug> && claude" Enter
    ```
 
 5. **Wait for boot:** Poll `tmux capture-pane -t "work-<issue>-<slug>" -p` for Claude prompt. Timeout 30s.
@@ -257,17 +282,17 @@ Launch all agents in a single message (parallel tool calls).
 
 </details>
 
-### 6c. Report Wave Launch
+### 6d. Report Wave Launch
 
 Print summary table:
 
 | Issue | Title | Branch | Session/Agent |
 | ----- | ----- | ------ | ------------- |
-| #N    | Title | worktree-\<issue\>-\<slug\> | \<session ref\> |
+| #N    | Title | \<issue\>-\<slug\> | \<session ref\> |
 
 If using tmux: `Attach with: tmux attach -t "work-<issue>-<slug>"`
 
-### 6d. Monitor Wave Completion
+### 6e. Monitor Wave Completion
 
 **For interactive dispatch (cmux/tmux):**
 
@@ -362,7 +387,7 @@ gh pr checks <pr-number>
       ```
       Poll `cmux read-screen --surface <surface>` for shell prompt, timeout 10s.
 
-   b. **Close cmux workspace:**
+   b. **Close cmux workspace** (terminates the terminal window):
       ```bash
       cmux close-workspace --workspace <session>
       ```
@@ -379,7 +404,7 @@ gh pr checks <pr-number>
       ```
       Poll `tmux capture-pane -t "<session>" -p` for shell prompt, timeout 10s.
 
-   b. **Kill tmux session:**
+   b. **Kill tmux session** (terminates the terminal window):
       ```bash
       tmux kill-session -t "<session>"
       ```
@@ -399,7 +424,7 @@ Then regardless of dispatch method:
    c. **Remove worktree and its branch:**
       ```bash
       git worktree remove .claude/worktrees/<issue>-<slug>
-      git branch -D worktree-<issue>-<slug>
+      git branch -D <issue>-<slug>
       ```
       If uncommitted changes, prompt user before `--force`.
 

@@ -91,9 +91,14 @@ git rev-parse --show-toplevel
 git worktree list --porcelain
 ```
 
-- **If already in a `.claude/worktrees/` path:** You were spawned by `/work` via `claude --worktree`. You're ready to go — skip worktree creation.
-- **If in the main repo:** You're running standalone. Use the `EnterWorktree` tool to create an isolated worktree:
-  - Name: `<issue-number>-<slug>` (e.g., `42-add-auth`)
+- **If already in a `.claude/worktrees/` path:** You were spawned by `/work`. You're ready to go — skip worktree creation.
+- **If in the main repo:** You're running standalone. Create a worktree manually for a clean branch name:
+  ```bash
+  mkdir -p .claude/worktrees
+  git worktree add .claude/worktrees/<issue>-<slug> -b <issue>-<slug>
+  cd .claude/worktrees/<issue>-<slug>
+  ```
+  If a `.worktreeinclude` file exists, copy matching gitignored files (`.env`, etc.) into the worktree.
 
 **Check for an existing branch:**
 
@@ -187,7 +192,7 @@ Before pushing, verify you're on the correct branch:
 git branch --show-current
 ```
 
-Confirm the branch name matches the expected pattern for this issue (e.g., `worktree-<issue>-<slug>` or `<issue>-<slug>`). If it doesn't match, something went wrong — stop and report failure.
+Confirm the branch name matches the expected pattern for this issue (e.g., `<issue>-<slug>`). If it doesn't match, something went wrong — stop and report failure.
 
 ```bash
 git push -u origin <branch-name>
