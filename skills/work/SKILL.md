@@ -267,8 +267,9 @@ Stop after launching the wave. The user monitors via `/work status` and cleans u
 Wait for all agents to return, then:
 
 1. **Check for failures** — read each status file:
-   - Can you unblock by merging a completed PR first? Do so, then re-spawn.
+   - Can you unblock by merging a completed PR first? **Ask the user** before merging, then re-spawn if approved.
    - Genuine blocker? Note for final report and continue.
+   - **Never auto-merge PRs.** Always get user confirmation first.
 
 2. **Cross-cutting review** — check for conflicts between the wave's PRs:
    ```bash
