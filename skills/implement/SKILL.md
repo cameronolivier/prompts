@@ -70,6 +70,8 @@ Detect the main repo root (the first line from `git worktree list --porcelain | 
 
 Status file absolute path: `<main-repo-root>/.olvrcc/status/issue-<n>.json`
 
+Status lifecycle: `pending` → `in_progress` → `agent_complete` → `in_review` → `complete` (or `failed`).
+
 Update this file at each lifecycle stage. The file is created by `/work` with status `pending`. If running standalone (no status file exists), create the status directory and file yourself.
 
 ## Input
@@ -184,7 +186,7 @@ Review the branch against main before pushing. For each changed file:
 
 Fix any issues found, commit, and re-run the full test suite.
 
-### 8. Push & Create PR
+### 8. Push & Create Draft PR
 
 Before pushing, verify you're on the correct branch:
 
@@ -198,11 +200,40 @@ Confirm the branch name matches the expected pattern for this issue (e.g., `<iss
 git push -u origin <branch-name>
 ```
 
-Create the PR using the implementation plan as the description body. Run `/create-pr`.
+Create a **draft PR** using the implementation plan as the description body. Run `/create-pr` with the `--draft` flag, or if calling `gh` directly:
 
-### 9. Post-PR Review & CI
+```bash
+gh pr create --draft --title "<issue>-<slug>: <title>" --body "<implementation plan>"
+```
 
-After PR creation:
+### 9. Agent Complete
+
+Update status file to `agent_complete`:
+
+```json
+{
+  "status": "agent_complete",
+  "pr": "<pr-url>"
+}
+```
+
+Comment on the issue:
+
+```bash
+gh issue comment <number> --body "Draft PR created: <pr-url>"
+```
+
+Notify via cmux (if available):
+
+```bash
+cmux notify --title "Issue #<n> — draft PR ready" --body "PR: <pr-url>"
+```
+
+**Worktree cleanup:** Do NOT exit or remove the worktree yourself. The worktree will be cleaned up by `/work cleanup` or by the user when they exit the Claude session (Claude prompts keep/remove on exit).
+
+### 10. Post-PR Review & CI (if requested)
+
+These steps run only if the user asks the agent to continue after `agent_complete`, or if running standalone:
 
 1. Run `/review` on the PR — fix any findings and push
 2. Run `/security-review` if available — fix any findings and push
@@ -215,30 +246,14 @@ After PR creation:
    ```
    - Address each comment, push fixes, re-run checks until approved
 
-### 10. Complete
+### 11. Complete (human-driven)
 
-Update status file to `complete`:
+Status transitions after `agent_complete` are human-driven:
 
-```json
-{
-  "status": "complete",
-  "pr": "<pr-url>"
-}
-```
+- **`in_review`** — set when the PR is taken out of draft (ready for review)
+- **`complete`** — set when the PR is merged
 
-Comment on the issue:
-
-```bash
-gh issue comment <number> --body "PR created: <pr-url>"
-```
-
-Notify via cmux (if available):
-
-```bash
-cmux notify --title "Issue #<n> done" --body "PR: <pr-url>"
-```
-
-**Worktree cleanup:** Do NOT exit or remove the worktree yourself. The worktree will be cleaned up by `/work cleanup` or by the user when they exit the Claude session (Claude prompts keep/remove on exit).
+These are typically managed by `/work status` or `/work cleanup`, not by the implement agent.
 
 ## Error Handling
 

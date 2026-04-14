@@ -33,6 +33,24 @@ Parse `$ARGUMENTS`:
 
 ---
 
+## Status Model
+
+```
+pending → in_progress → agent_complete → in_review → complete
+                    ↘ failed
+```
+
+| Status | Set by | Trigger |
+|--------|--------|---------|
+| `pending` | `/work` orchestrator | Worktree created, agent not yet started |
+| `in_progress` | `/implement` agent | Agent begins work |
+| `agent_complete` | `/implement` agent | Draft PR created, all checks pass |
+| `in_review` | Human / orchestrator | PR taken out of draft |
+| `complete` | Human / orchestrator | PR merged |
+| `failed` | `/implement` agent | Blocker after 2 attempts |
+
+---
+
 ## Phase 1: Detect Project
 
 ```bash
@@ -86,7 +104,7 @@ Maximum 4-5 agents per wave.
 
 ### Exclude Active Agents
 
-Read all files matching `.olvrcc/status/issue-*.json`. Exclude any issue numbers with `pending` or `in_progress` status.
+Read all files matching `.olvrcc/status/issue-*.json`. Exclude any issue numbers with `pending`, `in_progress`, or `agent_complete` status.
 
 ### Present Plan
 
@@ -110,16 +128,56 @@ Ask the user to confirm before proceeding.
 ## Phase 5: Detect Dispatch Method
 
 ```bash
-command -v cmux && echo "cmux" || (command -v tmux && echo "tmux" || echo "agent")
+if [ -n "${CMUX_WORKSPACE_ID:-}" ] || (command -v cmux >/dev/null && cmux ping >/dev/null 2>&1); then
+  echo "cmux"
+elif [ -n "${TMUX:-}" ]; then
+  echo "tmux"
+elif command -v tmux >/dev/null; then
+  echo "tmux-outside"
+else
+  echo "agent"
+fi
 ```
 
-- **cmux** → interactive terminal sessions (preferred)
-- **tmux** → interactive terminal sessions (fallback)
+- **cmux** → grid workspace via cmux socket (preferred)
+- **tmux** → grid window in current session (inside tmux)
+- **tmux-outside** → tmux is installed but user is NOT inside a tmux session. **Ask the user:**
+
+  > You're not in a tmux session. Would you like me to create one and kick off the work there? You'll just need to `tmux attach -t work` in a terminal to watch the grid.
+
+  If the user says yes, bootstrap a tmux session via the launch script:
+
+  ```bash
+  "$SCRIPT_DIR/work-launch.sh" bootstrap "$(pwd)" "<original-args>"
+  ```
+
+  This creates a detached tmux session `work`, boots claude inside it, and sends `/work <args>`. The new claude instance detects `$TMUX`, resolves to `tmux` dispatch, and proceeds with grid creation automatically.
+
+  Print:
+
+  > Agents are spinning up in tmux session `work`. Open a terminal and run:
+  > ```
+  > tmux attach -t work
+  > ```
+  > to see the grid.
+
+  **Stop here.** The bootstrapped session handles everything from here.
+
 - **agent** → autonomous subagents via Agent tool (no terminal multiplexer available)
 
 Tell the user which dispatch method was detected. If `agent` mode, warn: "No cmux/tmux found — using autonomous subagents. You won't be able to interact with agents mid-flight."
 
 Store as `$DISPATCH`.
+
+### Ensure .olvrcc is gitignored
+
+On first run, ensure `.olvrcc/` is in the project's `.gitignore`:
+
+```bash
+if ! grep -qx '.olvrcc/' .gitignore 2>/dev/null; then
+  echo '.olvrcc/' >> .gitignore
+fi
+```
 
 ## Phase 6: Execute Waves
 
@@ -167,82 +225,81 @@ Write `.olvrcc/status/issue-<n>.json` for each issue:
   "worktree": ".claude/worktrees/<issue>-<slug>",
   "dispatch": "<cmux|tmux|agent>",
   "wave": <wave-number>,
-  "session": null
+  "surface": null
 }
 ```
 
 ### 6c. Spawn Agents
 
-Launch all agents in the current wave in parallel, using the detected dispatch method:
+Launch all agents in the current wave in parallel, using the detected dispatch method.
+
+**Locate the launch script:**
+
+```bash
+SCRIPT_DIR="$(dirname "$(readlink -f "$(which claude 2>/dev/null || echo claude)")")/../skills/work/scripts"
+# Fallback paths
+for dir in \
+  "$(pwd)/skills/work/scripts" \
+  "$HOME/.claude/skills/work/scripts"; do
+  [ -f "$dir/work-launch.sh" ] && SCRIPT_DIR="$dir" && break
+done
+```
 
 <details>
-<summary><strong>cmux dispatch</strong></summary>
+<summary><strong>cmux dispatch — new workspace with grid layout</strong></summary>
 
-For each issue:
+The orchestrator stays in its current workspace. Agents get a **new workspace** with a grid layout (2x2, 2x3, 2x4 depending on wave size).
 
-1. **Create cmux workspace:**
+1. **Create grid workspace:**
    ```bash
-   cmux --json new-workspace
+   SURFACES=$(DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" grid <wave-size>)
    ```
-   Parse the workspace UUID.
+   Returns one surface ID per line. Grid dimensions are auto-calculated:
+   - 1–2 issues → 1×2
+   - 3–4 issues → 2×2
+   - 5–6 issues → 2×3
+   - 7–8 issues → 2×4
 
-2. **Name the workspace:**
+2. **Launch agents in each surface:**
+   Read surface IDs line-by-line. For each issue+surface pair:
    ```bash
-   cmux rename-workspace --workspace <uuid> "#<issue> - <title>"
-   ```
-   Truncate the title if needed to keep it readable in the sidebar.
-
-3. **Get surface reference:**
-   ```bash
-   cmux --json list-pane-surfaces --workspace <uuid>
-   ```
-
-4. **Update status file** — set `session` to workspace UUID, store `"surface": "<ref>"`.
-
-5. **Start Claude in the worktree:**
-   ```bash
-   cmux send --surface <ref> "cd .claude/worktrees/<issue>-<slug> && claude\n"
+   DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" launch \
+     --surface <surface-id> \
+     --issue <n> \
+     --worktree "$(pwd)/.claude/worktrees/<issue>-<slug>"
    ```
 
-6. **Wait for boot:** Poll `cmux read-screen --surface <ref>` for Claude prompt. Timeout 30s.
+3. **Update status file** — set `"surface": "<surface-id>"`.
 
-7. **Send implement:**
-   ```bash
-   cmux send --surface <ref> "/implement <issue-number>\n"
-   ```
+After all agents launch, the user can switch to the agent workspace to see the grid. Click any pane to interact.
 
 </details>
 
 <details>
-<summary><strong>tmux dispatch</strong></summary>
+<summary><strong>tmux dispatch — new window with tiled grid</strong></summary>
 
-For each issue:
+By Phase 5, we're guaranteed to be **inside tmux**. Grid appears as a new window in the current session.
 
-1. **Create tmux session:**
+1. **Create grid window:**
    ```bash
-   tmux new-session -d -s "work-<issue>-<slug>"
+   PANES=$(DISPATCH=tmux TMUX_SESSION="$(tmux display-message -p '#S')" \
+     "$SCRIPT_DIR/work-launch.sh" grid <wave-size>)
+   ```
+   Returns one pane ID per line. tmux auto-rebalances to a `tiled` layout.
+
+2. **Launch agents in each pane:**
+   Read pane IDs line-by-line. For each issue+pane pair:
+   ```bash
+   DISPATCH=tmux TMUX_SESSION="$(tmux display-message -p '#S')" \
+     "$SCRIPT_DIR/work-launch.sh" launch \
+     --surface <pane-id> \
+     --issue <n> \
+     --worktree "$(pwd)/.claude/worktrees/<issue>-<slug>"
    ```
 
-2. **Name the session window:**
-   ```bash
-   tmux rename-window -t "work-<issue>-<slug>" "#<issue> - <title>"
-   ```
+3. **Update status file** — set `"surface": "<pane-id>"`.
 
-3. **Update status file** — set `session` to `"work-<issue>-<slug>"`.
-
-4. **Start Claude in the worktree:**
-   ```bash
-   tmux send-keys -t "work-<issue>-<slug>" "cd .claude/worktrees/<issue>-<slug> && claude" Enter
-   ```
-
-5. **Wait for boot:** Poll `tmux capture-pane -t "work-<issue>-<slug>" -p` for Claude prompt. Timeout 30s.
-
-6. **Send implement:**
-   ```bash
-   tmux send-keys -t "work-<issue>-<slug>" "/implement <issue-number>" Enter
-   ```
-
-**User interaction:** `tmux attach -t "work-<issue>-<slug>"`, detach with `Ctrl+B, D`.
+**Interacting with agents:** `Ctrl+B, q` to show pane numbers, `Ctrl+B, <number>` to select. Or `Ctrl+B, o` to cycle.
 
 </details>
 
@@ -268,9 +325,10 @@ Agent tool:
     3. Gather context — read the issue, related code, and plan files
     4. Implement using TDD (red-green-refactor) with atomic conventional commits
     5. Run full verification (test, typecheck, lint)
-    6. Push branch and create PR via `gh pr create`
-    7. Update status file to "complete" with PR URL
+    6. Push branch and create draft PR via `gh pr create --draft`
+    7. Update status file to "agent_complete" with PR URL
     8. Comment on the issue with the PR link
+    9. Only set status to "complete" after PR is merged (not when opened)
 
     Branch name: <issue>-<slug>
     Status file: <repo-root>/.olvrcc/status/issue-<n>.json
@@ -286,11 +344,11 @@ Launch all agents in a single message (parallel tool calls).
 
 Print summary table:
 
-| Issue | Title | Branch | Session/Agent |
-| ----- | ----- | ------ | ------------- |
-| #N    | Title | \<issue\>-\<slug\> | \<session ref\> |
+| Issue | Title | Branch | Pane |
+| ----- | ----- | ------ | ---- |
+| #N    | Title | \<issue\>-\<slug\> | \<surface/pane ref\> |
 
-If using tmux: `Attach with: tmux attach -t "work-<issue>-<slug>"`
+For tmux: remind the user `Ctrl+B, q` shows pane numbers, `Ctrl+B, o` cycles panes.
 
 ### 6e. Monitor Wave Completion
 
@@ -360,55 +418,46 @@ gh pr checks <pr-number>
 
 1. Glob for `.olvrcc/status/issue-*.json`
 2. Read each file, parse JSON
-3. Print summary table:
+3. For interactive dispatch, check if surface/pane still exists:
+   ```bash
+   DISPATCH=<dispatch> "$SCRIPT_DIR/work-launch.sh" status <surface>
+   ```
+   Returns `exists` or `closed`.
+4. Print summary table:
 
-| Issue | Title | Status      | Wave | Branch      | Dispatch | Session | PR     |
-| ----- | ----- | ----------- | ---- | ----------- | -------- | ------- | ------ |
-| #N    | Title | in_progress | 1    | branch-name | tmux     | session | —      |
-| #M    | Title | complete    | 1    | branch-name | cmux     | surface | PR #42 |
+| Issue | Title | Status | Wave | Branch | Pane | PR |
+| ----- | ----- | ------ | ---- | ------ | ---- | -- |
+| #N    | Title | in_progress | 1 | branch-name | surface-id | — |
+| #M    | Title | agent_complete | 1 | branch-name | surface-id | PR #42 (draft) |
 
-4. If no status files exist, print "No active agents"
+5. If no status files exist, print "No active agents"
 
 ---
 
 ## Cleanup Mode (`/work cleanup`)
 
 1. Glob for `.olvrcc/status/issue-*.json`
-2. Read each file, filter to `complete` or `failed` status
+2. Read each file, filter to `agent_complete`, `complete`, or `failed` status
 3. For each, ask the user: "Issue #N (<status>, PR #X) — clean up? (y/n)"
 4. If yes, follow the teardown for the `dispatch` method in the status file:
 
 <details>
 <summary><strong>cmux teardown</strong></summary>
 
-   a. **Exit Claude session:**
-      ```bash
-      cmux send --surface <surface> "/exit\n"
-      ```
-      Poll `cmux read-screen --surface <surface>` for shell prompt, timeout 10s.
-
-   b. **Close cmux workspace** (terminates the terminal window):
-      ```bash
-      cmux close-workspace --workspace <session>
-      ```
-      Ignore errors if already closed.
+   Close the pane via the launch script:
+   ```bash
+   DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" close <surface>
+   ```
 
 </details>
 
 <details>
 <summary><strong>tmux teardown</strong></summary>
 
-   a. **Exit Claude session:**
-      ```bash
-      tmux send-keys -t "<session>" "/exit" Enter
-      ```
-      Poll `tmux capture-pane -t "<session>" -p` for shell prompt, timeout 10s.
-
-   b. **Kill tmux session** (terminates the terminal window):
-      ```bash
-      tmux kill-session -t "<session>"
-      ```
-      Ignore errors if already closed.
+   Close the pane via the launch script:
+   ```bash
+   DISPATCH=tmux "$SCRIPT_DIR/work-launch.sh" close <pane-id>
+   ```
 
 </details>
 
@@ -431,3 +480,11 @@ Then regardless of dispatch method:
    d. **Delete status file:** `rm .olvrcc/status/issue-<n>.json`
 
 5. If no completed/failed agents, print "Nothing to clean up"
+
+### Manual Pane Cleanup
+
+The user can also request cleanup of a specific pane at any time:
+
+> "Close the pane for issue #12"
+
+Use the launch script to close just that pane without removing the worktree or status file. This lets the user continue working on the issue from the orchestrator pane (which is in the main repo, not a worktree).
