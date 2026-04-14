@@ -236,14 +236,21 @@ Launch all agents in the current wave in parallel, using the detected dispatch m
 **Locate the launch script:**
 
 ```bash
-SCRIPT_DIR="$(dirname "$(readlink -f "$(which claude 2>/dev/null || echo claude)")")/../skills/work/scripts"
-# Fallback paths
+SCRIPT_DIR=""
 for dir in \
-  "$(pwd)/skills/work/scripts" \
-  "$HOME/.claude/skills/work/scripts"; do
+  "$HOME/.claude/skills/work/scripts" \
+  "$(pwd)/skills/work/scripts"; do
   [ -f "$dir/work-launch.sh" ] && SCRIPT_DIR="$dir" && break
 done
 ```
+
+If `work-launch.sh` is not found, stop and tell the user: "Launch script not found. Run `install.sh -s work` from the prompts repo to install it."
+
+**IMPORTANT — Claude CLI usage:**
+- `claude` — start interactive session
+- `claude "query"` — interactive session with initial prompt
+- `claude -p "query"` — non-interactive print mode, exits after response
+- There is NO `--prompt` flag. Never use `claude --prompt`. It does not exist.
 
 <details>
 <summary><strong>cmux dispatch — new workspace with grid layout</strong></summary>
