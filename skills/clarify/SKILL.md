@@ -1,6 +1,13 @@
 ---
 name: clarify
-description: Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "clarify", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning.
+description: Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "clarify", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning. Distinct from `ask-questions-if-underspecified` (gating fuzzy requests *before* work starts) — this stress-tests an existing plan.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - AskUserQuestion
 ---
 
 # Clarify

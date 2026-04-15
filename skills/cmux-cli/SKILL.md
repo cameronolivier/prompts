@@ -1,6 +1,14 @@
 ---
 name: cmux-cli
 description: Control cmux terminal multiplexer via CLI and socket API. Manage workspaces, splits, notifications, sidebar metadata, and browser automation. Use when user mentions cmux, wants to automate terminal workflows, manage workspaces/splits, send notifications, control an embedded browser, or interact with cmux surfaces.
+allowed-tools:
+  - Read
+  - Bash(cmux:*)
+  - Bash(nc:*)
+  - Bash(jq:*)
+  - Bash(CMUX_SOCKET_PATH=*)
+  - Bash(CMUX_SOCKET_MODE=*)
+  - Bash(ln:*)
 ---
 
 # cmux CLI

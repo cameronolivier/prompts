@@ -1,12 +1,25 @@
 ---
 name: create-pr
-description: Create a GitHub PR with auto-generated content from branch changes and a humorous GIF. Use when user says "create pr", "make a pr", "open a pull request", or after completing implementation work.
+description: Create a GitHub PR with auto-generated content from branch changes and a humorous GIF. Use when user says "create pr", "make a pr", "open a pull request", or after completing implementation work. Triggers `github-project-status` to move the linked issue to "In Review" when the PR opens.
 allowed-tools:
   - Read
-  - Bash
+  - Skill
   - WebSearch
   - WebFetch
+  - Bash(git log:*)
+  - Bash(git diff:*)
+  - Bash(git branch:*)
+  - Bash(git rev-parse:*)
+  - Bash(git push:*)
+  - Bash(gh pr create:*)
+  - Bash(gh pr view:*)
+  - Bash(gh repo view:*)
+  - Bash(gh api:*)
+  - Bash(jq:*)
 ---
+
+> Cross-references: see `github-cli-rate-limits` for `gh` discipline; invoke `github-project-status` after the PR opens to move the linked issue to "In Review".
+
 
 Create a GitHub pull request with auto-generated content from the current branch.
 
@@ -44,6 +57,11 @@ Create a GitHub pull request with auto-generated content from the current branch
    - **CRITICAL:** Always pass `--head <current-branch>` and `--base <target-branch>` explicitly. Never rely on implicit branch detection — this causes wrong-branch PRs when running in worktrees.
    - Include issue number prefix in PR title if available (e.g., "#12 - S3 bucket setup")
    - Return the PR URL when complete
+
+7. **Move the linked issue to "In Review":**
+   - If a `Closes #N` link was added (step 4), invoke the `github-project-status` skill: `move.sh <N> "In Review"`.
+   - Skip silently if `.github/project.yml` is absent — that repo isn't on a project board.
+   - Do not block PR creation on this; report failures as a warning only.
 
 ## Default PR Structure
 

@@ -1,6 +1,23 @@
 ---
 name: handle-pr-feedback
 description: Triage and respond to PR review comments from GitHub. Fetches all review comments, categorizes by severity, verifies each against the codebase, drafts reply threads for pushback (user approves before posting), and fixes valid issues with atomic commits. Use when user says "address PR feedback", "handle review comments", "triage PR comments", "respond to review", or provides a PR number/URL with review feedback to process.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - AskUserQuestion
+  - Bash(gh api:*)
+  - Bash(gh pr view:*)
+  - Bash(gh pr diff:*)
+  - Bash(gh pr comment:*)
+  - Bash(git log:*)
+  - Bash(git diff:*)
+  - Bash(git add:*)
+  - Bash(git commit:*)
+  - Bash(git status:*)
+  - Bash(jq:*)
 ---
 
 # PR Feedback Triage
@@ -8,6 +25,8 @@ description: Triage and respond to PR review comments from GitHub. Fetches all r
 Operationally process PR review feedback: fetch, triage, verify, fix, reply.
 
 **Mindset:** Verify before implementing. Push back when wrong. No performative agreement.
+
+> Cross-references: `github-cli-rate-limits` for `gh api` discipline (every fetch of a multi-comment PR is multiple REST calls — pre-flight the limit on busy PRs).
 
 ## Input
 
