@@ -1,6 +1,25 @@
 ---
 name: create-pr
-description: Create a GitHub PR with auto-generated content from branch changes and a humorous GIF. Use when user says "create pr", "make a pr", "open a pull request", or after completing implementation work. Triggers `github-project-status` to move the linked issue to "In Review" when the PR opens.
+description: |
+  Create a GitHub PR with auto-generated content from branch changes and a humorous GIF. Use when user says "create pr", "make a pr", "open a pull request", or after completing implementation work. Triggers `github-project-status` to move the linked issue to "In Review" when the PR opens.
+
+  <example>
+  Context: User has finished implementing and wants the PR opened.
+  user: "create a pr"
+  assistant: "Diffing branch vs main, generating description, opening draft PR with --head explicit, then moving the linked issue to In Review."
+  <commentary>
+  Default flow — derive ticket from branch name, fill template, attach GIF, open PR, trigger project-status move.
+  </commentary>
+  </example>
+
+  <example>
+  Context: Dispatched by /implement step 11.
+  user: "[dispatched by /implement — push branch and create draft PR for issue #42]"
+  assistant: "Pushing 42-foo, creating draft PR, returning URL."
+  <commentary>
+  Composed mode — invoked by another skill, returns PR URL for downstream steps (post-PR review loop).
+  </commentary>
+  </example>
 allowed-tools:
   - Read
   - Skill

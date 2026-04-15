@@ -1,6 +1,34 @@
 ---
 name: handle-pr-feedback
-description: Triage and respond to PR review comments from GitHub. Fetches all review comments, categorizes by severity, verifies each against the codebase, drafts reply threads for pushback (user approves before posting), and fixes valid issues with atomic commits. Use when user says "address PR feedback", "handle review comments", "triage PR comments", "respond to review", or provides a PR number/URL with review feedback to process.
+description: |
+  Triage and respond to PR review comments from GitHub. Fetches all review comments, categorizes by severity, verifies each against the codebase, drafts reply threads for pushback (user approves before posting), and fixes valid issues with atomic commits. Use when user says "address PR feedback", "handle review comments", "triage PR comments", "respond to review", or provides a PR number/URL with review feedback to process.
+
+  <example>
+  Context: User got a review on their PR and wants it processed.
+  user: "address the feedback on PR 123"
+  assistant: "Fetching review comments, triaging by severity, presenting plan before any commits or replies."
+  <commentary>
+  Default mode — pull comments from gh, categorise, show triage table, wait for user approval, then fix and reply.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User pastes review text directly in chat.
+  user: "respond to this review: <pasted feedback>"
+  assistant: "Processing inline — verifying each item against the codebase, drafting replies, asking before posting anything."
+  <commentary>
+  Inline mode — no gh fetch needed, but verification + approval rules still apply.
+  </commentary>
+  </example>
+
+  <example>
+  Context: Reviewer is wrong on a specific point.
+  user: "they're wrong about the schema choice — push back"
+  assistant: "Drafting a reply with the technical reasoning, showing it before posting."
+  <commentary>
+  Pushback mode — never auto-post; user approves the reply text first.
+  </commentary>
+  </example>
 allowed-tools:
   - Read
   - Write

@@ -1,6 +1,25 @@
 ---
 name: clarify
-description: Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "clarify", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning. Distinct from `ask-questions-if-underspecified` (gating fuzzy requests *before* work starts) — this stress-tests an existing plan.
+description: |
+  Relentlessly interview the user about every aspect of a plan or design until reaching shared understanding. Use when user says "clarify", "interrogate this plan", "challenge my design", "poke holes", or wants rigorous plan review through structured questioning. Distinct from `ask-questions-if-underspecified` (gating fuzzy requests *before* work starts) — this stress-tests an existing plan.
+
+  <example>
+  Context: User has a freshly written plan and wants holes found before building.
+  user: "Clarify this plan"
+  assistant: "Mapping the decision tree, then interviewing top-down one branch at a time."
+  <commentary>
+  Default mode — ingest plan, identify root/branch/leaf decisions, ask one question at a time.
+  </commentary>
+  </example>
+
+  <example>
+  Context: User wants pushback on a specific design choice.
+  user: "Poke holes in my caching strategy"
+  assistant: "Walking the cache decision tree — invalidation, consistency, blast radius. One question at a time."
+  <commentary>
+  Scoped mode — interrogation focused on a single subsystem rather than a whole plan.
+  </commentary>
+  </example>
 allowed-tools:
   - Read
   - Write
