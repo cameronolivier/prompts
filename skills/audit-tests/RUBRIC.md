@@ -87,7 +87,7 @@ Production quality is defined by failure behaviour, not happy path.
 **Don't mock:**
 - Internal collaborators (unless truly necessary)
 - Database in integration tests (use real DB)
-- The thing you're trying to test
+- The subject under test itself
 
 **Red flags:**
 - Mocking so much the test proves nothing

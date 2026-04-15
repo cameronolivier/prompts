@@ -1,32 +1,32 @@
 ---
 name: audit-tests
 description: |
-  Audit test quality for a branch or PR — find gaps, rate by priority, and implement improvements. Use when user says "audit tests", "review test quality", "check test coverage", "are my tests good enough", or when invoked by other skills post-implementation.
+  Audit test quality for a branch or PR — find gaps, rate by priority, and optionally implement fixes. Trigger on "audit tests", "review test quality", "check test coverage", "are my tests good enough", "missing test cases", or when dispatched by another skill (e.g. `/implement` QA loop) as a post-implementation quality gate. Supports interactive mode (report + ask user what to implement) and QA-loop mode (auto-implement P1 gaps, emit structured status).
 
   <example>
   Context: User finished a feature and wants to check test quality
   user: "Audit the tests on this branch"
-  assistant: "I'll audit all test files changed on this branch against main and report gaps by priority."
+  assistant: "Running /audit-tests — diff current branch vs main, review changed test files, report gaps by priority."
   <commentary>
-  Default mode — diffs current branch vs main, reviews changed/added test files.
+  Default interactive mode — reports findings and asks what to implement.
   </commentary>
   </example>
 
   <example>
   Context: User wants to audit a specific PR
   user: "/audit-tests 42"
-  assistant: "I'll fetch PR #42's changed files and audit test quality."
+  assistant: "Fetching PR #42 changed files and auditing test quality."
   <commentary>
-  PR mode — fetches file list from GitHub, scopes audit to those files.
+  PR mode — scope is the PR's file list.
   </commentary>
   </example>
 
   <example>
-  Context: Post-implementation agent wants test quality check
-  user: "[invoked by /implement after completing work]"
-  assistant: "Running test audit on the implementation branch."
+  Context: /implement dispatches this as a QA-loop worker
+  user: "[dispatched by /implement step 7 — audit tests on feature branch, P1 only, auto-implement, report COMMITS/STATUS/NOTES]"
+  assistant: "QA-loop mode: auditing branch, implementing P1 gaps, reporting structured status."
   <commentary>
-  Composable — other skills invoke this as a quality gate.
+  QA-loop mode — skips user prompt, implements P1 only, emits the fresh-subagent contract.
   </commentary>
   </example>
 allowed-tools:
@@ -35,90 +35,139 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
-  - Bash
   - AskUserQuestion
+  - Bash(git diff:*)
+  - Bash(git log:*)
+  - Bash(git status:*)
+  - Bash(git add:*)
+  - Bash(git commit:*)
+  - Bash(git rev-parse:*)
+  - Bash(gh pr diff:*)
+  - Bash(gh pr view:*)
+  - Bash(cat:*)
+  - Bash(ls:*)
+  - Bash(npx:*)
+  - Bash(pnpm:*)
+  - Bash(npm:*)
+  - Bash(yarn:*)
+  - Bash(bun:*)
+  - Bash(turbo:*)
+  - Bash(vitest:*)
+  - Bash(jest:*)
+  - Bash(playwright:*)
+  - Bash(cypress:*)
 ---
 
-Audit test quality for a piece of work. Find weaknesses, suggest improvements by priority, implement what the user chooses.
+Audit test quality for a piece of work. Find weaknesses, classify by priority, implement what was requested.
 
 **Arguments:** `$ARGUMENTS` — optional PR number, branch name, or path. Default: current branch vs main.
 
-## Phase 1: Detect
+**Composes with:** `/tdd` (when writing new tests), `/simplify` (sibling QA gate in `/implement`). Cross-reference [`skill-conventions`](../skill-conventions/SKILL.md) and [`github-cli-rate-limits`](../github-cli-rate-limits/SKILL.md) when this skill is extended.
 
-### Scope
+## Workflow index
+
+1. [Detect mode](#1-detect-mode)
+2. [Detect scope](#2-detect-scope)
+3. [Detect framework & conventions](#3-detect-framework--conventions)
+4. [Analyse](#4-analyse)
+5. [Report](#5-report)
+6. [Implement](#6-implement)
+7. [Verify & exit](#7-verify--exit)
+
+Detailed rubric in [`RUBRIC.md`](RUBRIC.md). Test-writing patterns in [`IMPLEMENTATION.md`](IMPLEMENTATION.md).
+
+## 1. Detect mode
+
+Two modes. Pick one up front:
+
+| Mode | Trigger | Behaviour |
+|------|---------|-----------|
+| **interactive** | User invoked directly (`/audit-tests`, free-form request) | Report findings, ask user what to implement, then implement. |
+| **QA-loop** | Dispatched by another skill (e.g. `/implement` step 7) with instructions to auto-implement and report structured status | Skip the user prompt. Auto-implement P1 only. Emit the [QA-loop contract](#qa-loop-contract). |
+
+When in doubt, assume interactive. If the dispatching prompt says "report `COMMITS/STATUS/NOTES`", that is QA-loop mode.
+
+## 2. Detect scope
 
 Determine which files to audit:
 
-- **No argument / branch name:** `git diff --name-only main...HEAD` — all changed/added files
-- **PR number:** `gh pr diff <number> --name-only` — files changed in PR
-- **Explicit path:** Use the given path/glob
+- **No argument / branch name:** `git diff --name-only main...HEAD`
+- **PR number:** `gh pr diff <number> --name-only`
+- **Explicit path/glob:** use the given path
 
-From the changed files, identify:
-- **Source files** — the code being tested
-- **Test files** — existing tests for that code
-- **Untested source files** — changed source with no corresponding tests
+From the changed files, classify:
 
-### Framework Detection
+- **Source files** — the code under test
+- **Test files** — existing tests covering that code
+- **Untested source files** — changed source with no corresponding test file
+
+## 3. Detect framework & conventions
+
+### Framework
 
 Auto-detect from project config and dependencies:
 
 | Signal | Framework |
 |--------|-----------|
-| `vitest.config.*` or `vitest` in package.json | Vitest |
-| `jest.config.*` or `jest` in package.json | Jest |
+| `vitest.config.*` or `vitest` in deps | Vitest |
+| `jest.config.*` or `jest` in deps | Jest |
 | `playwright.config.*` | Playwright (E2E) |
 | `cypress.config.*` or `cypress/` dir | Cypress (E2E) |
 | `@testing-library/*` in deps | Testing Library (component) |
 
-If ambiguous, check existing test file imports. If still unclear, ask the user.
+If ambiguous, inspect imports in existing test files. If still unclear and in interactive mode, ask the user. In QA-loop mode, skip gracefully — report no framework detected and exit CLEAN.
 
-### Convention Detection
+### Conventions
 
-Read CLAUDE.md and project config for test instructions. Then read 2-3 existing test files to learn:
-- File naming: `*.test.ts` vs `*.spec.ts`
-- Location: co-located vs `__tests__/` directory
-- Import style, describe/it structure, factory patterns
-- Mock approach, assertion style
+Read `CLAUDE.md` and 2–3 existing test files. Extract:
 
-**Rule:** Follow project conventions when their quality is sufficient. If conventions are sloppy (over-mocking, snapshot abuse, no assertions), defer to best practices. Always respect explicit project instructions.
+- File naming (`*.test.ts` vs `*.spec.ts`)
+- Location (co-located vs `__tests__/`)
+- `describe`/`it` structure, factory patterns, mock style
 
-### Test Command Detection
+**Rule:** follow project conventions when their quality is sufficient. If conventions are sloppy (over-mocking, snapshot abuse, empty assertions), defer to the rubric. Always respect explicit instructions in `CLAUDE.md`.
 
-Find the test runner command:
-1. Check CLAUDE.md for explicit test commands
-2. Check `package.json` scripts: `test`, `test:unit`, `test:e2e`
-3. Check for `turbo.json`, monorepo workspace config
+### Test command
+
+Find the runner:
+
+1. `CLAUDE.md` for an explicit command
+2. `package.json` scripts: `test`, `test:unit`, `test:e2e`
+3. Monorepo config: `turbo.json`, workspace root
 4. Fall back to `npx vitest` / `npx jest` based on detected framework
 
-## Phase 2: Analyse
+## 4. Analyse
 
-Read every test file in scope. For each file, evaluate against the rubric in [RUBRIC.md](RUBRIC.md).
+Read every test file in scope. Evaluate against the dimensions in [`RUBRIC.md`](RUBRIC.md).
 
-For each gap found, classify:
-
-### Priority Tiers
+### Priority tiers
 
 | Tier | Label | Criteria |
 |------|-------|----------|
-| P1 | **Critical** | Gaps that would let real bugs through — missing failure paths, no boundary testing on auth/money/deletion, untested business-critical logic |
-| P2 | **Recommended** | Meaningful confidence improvements — edge cases, assertion quality, missing test types, negative testing |
-| P3 | **Nice-to-have** | Readability, naming, structural improvements, minor DRY opportunities |
+| P1 | **Critical** | Real bugs could ship — missing failure paths on business-critical logic, untested auth/money/deletion/tenancy, no boundary testing on state transitions |
+| P2 | **Recommended** | Meaningful confidence gains — edge cases, weak assertions, missing test types, absent negative cases |
+| P3 | **Nice-to-have** | Readability, naming, structural DRY opportunities |
 
-### Test Type Classification
+### Test type classification
 
-Group all findings by test type:
+Group findings by test type:
+
 - **Unit** — pure logic, validation, transformations, domain rules
-- **Integration** — API routes + DB, service + persistence, auth middleware
-- **Component** — React/UI component behavior (frontend only)
-- **E2E** — critical user journeys, smoke tests
+- **Integration** — API + DB, service + persistence, auth middleware
+- **Component** — rendered output, interaction, accessibility (frontend only)
+- **E2E** — critical user journeys only
 
-**Important:** Only suggest test types whose framework is already in the project. Exception: always suggest component tests for frontend code if `@testing-library` is available, even if none exist yet.
+**Only suggest types whose framework is present in the project.** Exception: always suggest component tests for frontend code if `@testing-library` is available, even if none exist yet.
 
-## Phase 3: Report
+### No-gap outcome
 
-### Chat Summary
+If analysis surfaces zero P1 findings and no changed source files are untested, the audit is CLEAN. Do not manufacture P2/P3 work to justify the run. In QA-loop mode, emit `STATUS: CLEAN` and exit. In interactive mode, report CLEAN and ask whether to proceed with P2/P3.
 
-Present a concise summary:
+## 5. Report
+
+### Chat summary
+
+Always produce this, in both modes:
 
 ```
 ## Test Audit: <branch-name>
@@ -129,25 +178,23 @@ Present a concise summary:
 - Test command: `pnpm test`
 
 ### Findings
-
 #### Unit Tests
-- P1 Critical: N items
-- P2 Recommended: N items
-- P3 Nice-to-have: N items
-
+- P1 Critical: N
+- P2 Recommended: N
+- P3 Nice-to-have: N
 #### Component Tests
-- P1 Critical: N items
+- P1 Critical: N
 ...
 
-### Top Critical Gaps
-1. <brief description>
-2. <brief description>
-3. <brief description>
+### Top critical gaps
+1. <brief>
+2. <brief>
+3. <brief>
 ```
 
-### Plan File
+### Plan file
 
-Write detailed findings to `plans/test-audit-<branch>.md`:
+Write detailed findings to `plans/test-audit-<branch>.md` (or `~/.claude/plans/` outside a repo). Structure:
 
 ```markdown
 # Test Audit: <branch-name>
@@ -156,9 +203,7 @@ Framework: <detected>
 Branch: <name> vs main
 
 ## Unit Tests
-
 ### P1 Critical
-- [ ] <file>: <what's missing and why it matters>
 - [ ] <file>: <what's missing and why it matters>
 
 ### P2 Recommended
@@ -170,61 +215,89 @@ Branch: <name> vs main
 ## Component Tests
 ...
 
-## Implementation Notes
-<any context about conventions, patterns to follow, framework specifics>
+## Implementation notes
+<conventions, framework specifics, patterns to follow>
 ```
 
-### Prompt User
+### Interactive prompt
 
-After presenting findings, ask:
+**Only in interactive mode.** After the summary, ask:
 
-> What would you like me to implement? Options:
+> What would you like me to implement?
 > - "all critical" — all P1 across all test types
 > - "all unit tests" — all priorities for unit tests
 > - "all critical unit tests" — P1 unit tests only
-> - "everything" — all findings
-> - Or specify by number from the plan file
+> - "everything" — every finding
+> - Or list item numbers from the plan file
 
-## Phase 4: Implement
+## 6. Implement
 
-Follow [IMPLEMENTATION.md](IMPLEMENTATION.md) for test writing best practices.
+Follow [`IMPLEMENTATION.md`](IMPLEMENTATION.md) for writing style.
 
-For each selected finding:
+### Selection
 
-1. **Create, extend, or refactor** the test file as needed
-2. **Run the tests** using the detected test command
-3. **If tests fail:** read the error, fix, re-run (max 3 attempts)
-4. **If still failing after 3 attempts:** report what's broken and move to next item
-5. **Commit** each logical group of test improvements atomically:
+- **Interactive mode:** implement what the user selected.
+- **QA-loop mode:** implement P1 findings only. Skip P2/P3.
+
+### Per-finding loop
+
+1. Create, extend, or refactor the test file.
+2. Run the detected test command on the affected file(s).
+3. **If tests fail:** read the error, fix, re-run. Max 3 attempts per finding.
+4. **If still failing after 3 attempts:** log the failure in the plan file, move on. Do not delete the test.
+5. **Commit** atomically per logical group:
    ```bash
    git add <specific-test-files>
-   git commit -m "test(scope): <what was added/improved>"
+   git commit -m "test(<scope>): <what was added/improved>"
    ```
 
-### Implementation Order
+### Implementation order (within a tier)
 
-Within a priority tier, implement in this order:
 1. Tests for completely untested source files
-2. Missing failure/edge case tests in existing files
+2. Missing failure/edge-case tests in existing files
 3. Refactoring weak existing tests
 
-### Verification
+## 7. Verify & exit
 
-After all selected items are implemented:
+Run the full test suite to confirm nothing broke:
 
 ```bash
-# Run full test suite to confirm nothing broke
 <detected-test-command>
 ```
 
-Report final results: how many items implemented, any that couldn't be resolved, overall test health.
+Follow verification-before-completion discipline: do not claim success before seeing green output.
+
+### Interactive mode exit
+
+Report:
+- Items implemented
+- Items that failed after 3 attempts
+- Final test-suite status
+- Path to the plan file
+
+### QA-loop contract
+
+In QA-loop mode, end the run by emitting **exactly** this block (no extra prose) so the dispatching orchestrator can parse it:
+
+```
+COMMITS: <n>
+STATUS: CLEAN | DIRTY
+NOTES: <one-line summary>
+```
+
+- `COMMITS` — number of commits this invocation made.
+- `STATUS` — `CLEAN` when no P1 gaps remain (either none found or all fixed). `DIRTY` when P1 gaps remain unfixed.
+- `NOTES` — one line: the dominant finding or blocker.
+
+The dispatching skill (`/implement`, `/work`) terminates the loop on `CLEAN`, on a zero-commit iteration, or after its iteration cap. See `skills/implement/SKILL.md` §7.
 
 ## Rules
 
-- **Never delete passing tests** — improve or add alongside
-- **Concise tests** — enough for confidence, not bloated. No unnecessary tests.
-- **Behaviour over implementation** — test what the system does, not how
-- **One assertion cluster per test** — multiple assertions OK if same behaviour
-- **Mock only at real boundaries** — network, filesystem, external services, time
-- **Deterministic** — control time, randomness, async, environment
-- **Name tests like requirements** — "rejects updates from unauthorized users" not "test1"
+- **Never delete passing tests** — improve or add alongside.
+- **Concise tests** — sufficient for confidence, no bloat. No tests for coverage's sake.
+- **Behaviour over implementation** — test what the system does, not how.
+- **One assertion cluster per test** — multiple assertions fine when they describe the same behaviour.
+- **Mock only at real boundaries** — network, filesystem, external services, time, randomness.
+- **Deterministic** — control time, randomness, async, environment.
+- **Name tests like requirements** — `rejects updates from unauthorized users`, not `test1`.
+- **No work manufacturing** — if tests are good, say so and exit.
