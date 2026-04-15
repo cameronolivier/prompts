@@ -27,6 +27,7 @@ allowed-tools:
   - Glob
   - Grep
   - AskUserQuestion
+model: opus
 ---
 
 # Clarify

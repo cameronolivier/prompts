@@ -56,6 +56,7 @@ allowed-tools:
   - Bash(jest:*)
   - Bash(playwright:*)
   - Bash(cypress:*)
+model: sonnet
 ---
 
 > **Recommended model: Sonnet** — reading test files, classifying gaps, writing/refactoring tests is firmly in Sonnet's range. Opus only earns its keep on architecturally-novel test design (rare).

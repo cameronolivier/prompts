@@ -5,6 +5,7 @@ allowed-tools:
   - Bash(gh:*)
   - Bash(jq:*)
   - Bash(GH_DEBUG=*)
+model: haiku
 ---
 
 # Conservative gh CLI usage

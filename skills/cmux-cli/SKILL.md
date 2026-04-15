@@ -9,6 +9,7 @@ allowed-tools:
   - Bash(CMUX_SOCKET_PATH=*)
   - Bash(CMUX_SOCKET_MODE=*)
   - Bash(ln:*)
+model: haiku
 ---
 
 # cmux CLI

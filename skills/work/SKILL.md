@@ -23,6 +23,7 @@ allowed-tools:
   - Bash(rm:*)
   - Bash(grep:*)
   - Bash(echo:*)
+model: sonnet
 ---
 
 Orchestrate implementation of GitHub issues in parallel using git worktrees.

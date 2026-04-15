@@ -14,6 +14,7 @@ allowed-tools:
   - Bash(gh auth refresh:*)
   - Bash(jq:*)
   - Bash(yq:*)
+model: haiku
 ---
 
 # GitHub Project Status

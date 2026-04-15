@@ -30,6 +30,7 @@ allowed-tools:
   - Bash(cp:*)
   - Bash(cat:*)
   - Bash(cmux:*)
+model: sonnet
 ---
 
 Implement a single GitHub issue end-to-end using TDD in an isolated worktree.

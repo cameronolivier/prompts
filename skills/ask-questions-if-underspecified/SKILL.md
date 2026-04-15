@@ -6,6 +6,7 @@ allowed-tools:
   - Glob
   - Grep
   - AskUserQuestion
+model: sonnet
 ---
 
 # Ask Questions If Underspecified

@@ -46,6 +46,7 @@ allowed-tools:
   - Bash(git commit:*)
   - Bash(git status:*)
   - Bash(jq:*)
+model: opus
 ---
 
 # PR Feedback Triage

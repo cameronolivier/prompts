@@ -35,6 +35,7 @@ allowed-tools:
   - Bash(gh repo view:*)
   - Bash(gh api:*)
   - Bash(jq:*)
+model: sonnet
 ---
 
 > **Recommended model: Sonnet** — composing a readable PR body from a diff is composition work; Sonnet is the right tool. Haiku misses nuance in the "Additional Work" classification.
