@@ -13,6 +13,20 @@ Every call provides:
 | `<TARGET>` | What the worker reviews (`branch <branch-name>`, `PR #<pr-number>`). |
 | `<COMMIT_RULE>` | Commit + push policy for the worker. See [Commit rules](#commit-rules). |
 | `<EXTRA>` | Optional extra constraints — e.g. audit-tests' "implement P1 findings only". Empty for vanilla loops. |
+| `<ORCH_MODEL>` | Model for the orchestrator Agent call (always `haiku` — pure dispatch). |
+| `<WORKER_MODEL>` | Model for the per-iteration worker Agent call. See [Worker model](#worker-model). |
+
+## Worker model
+
+The worker does the substantive review. Pick the model the work actually needs — Opus only where deep judgement matters.
+
+| Step | Worker model | Reason |
+|---|---|---|
+| 6 — simplify | `sonnet` | Refactoring suggestions on a diff. Sonnet matches Opus quality at half the cost. |
+| 7 — audit-tests | `sonnet` | Test-gap analysis + writing tests is firmly in Sonnet's range. |
+| 12 — pr-review | `opus` | Deep code review catches things Sonnet misses (subtle race conditions, missed edge cases, architectural smell). Worth the cost on the final gate. |
+
+The orchestrator is **always Haiku** — its only job is loop / parse `COMMITS:`/`STATUS:` / decide stop or continue. Haiku 4.5 is more than sufficient and an order of magnitude cheaper than Opus for what amounts to a counter and a regex.
 
 ## Commit rules
 
@@ -47,7 +61,7 @@ notes_by_iteration=[...]
 
 ## Canonical Agent prompt
 
-Pass to `Agent` as the orchestrator with `subagent_type: general-purpose`:
+Pass to `Agent` as the orchestrator with `subagent_type: general-purpose` and `model: <ORCH_MODEL>`:
 
 ```
 Orchestrate a <SKILL> QA loop on <TARGET>.
@@ -55,11 +69,13 @@ Orchestrate a <SKILL> QA loop on <TARGET>.
 DO NOT review the work yourself. Your only job is to loop and dispatch
 fresh worker subagents.
 
-Loop up to 3 iterations. Each iteration, dispatch a new Agent call:
+Loop up to 3 iterations. Each iteration, dispatch a new Agent call with
+model: <WORKER_MODEL>:
 
   Agent tool:
     description: "<SKILL> iteration <n>"
     subagent_type: general-purpose
+    model: <WORKER_MODEL>
     prompt: |
       Run the <SKILL> skill on <TARGET> right now, as a fresh review.
       You have no prior context — approach the work from scratch and
