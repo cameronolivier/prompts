@@ -66,24 +66,10 @@ Update the status file at each transition. The file is created by `/work` with `
 
 Steps 6, 7, and 12 all follow the same two-level dispatch pattern so every iteration gets a truly fresh review with no carry-over from prior passes.
 
-- **Level 1 — orchestrator.** One `Agent` call from this workflow. `subagent_type: general-purpose`. Its job is to run the loop, not the review. It does not open files, read the diff, or reason about findings itself.
+- **Level 1 — orchestrator.** One `Agent` call from this workflow. Its job is to loop and dispatch, not to review.
 - **Level 2 — iteration worker.** The orchestrator dispatches a brand-new `Agent` call per iteration. Each worker has zero context from prior iterations and reviews from scratch.
 
-Termination rules (orchestrator-enforced):
-
-- Stop on `STATUS: CLEAN` from the worker.
-- Stop if the worker made zero commits.
-- Stop after `QA_MAX_ITERATIONS` (default 3).
-
-Each worker reports only:
-
-```
-COMMITS: <n>
-STATUS: CLEAN | DIRTY
-NOTES: <one-line summary>
-```
-
-The orchestrator reports only the aggregate: `iterations`, `total_commits`, `final_status`, `notes_by_iteration`.
+The full template — orchestrator prompt, worker contract, termination rules, per-step substitutions — lives in `references/qa-loop-prompt.md`. Steps 6, 7, and 12 reference it instead of re-stating the prompt.
 
 ---
 
@@ -181,78 +167,27 @@ git commit -m "<type>(scope): <description>"
 
 ## 6. QA loop: simplify
 
-Dispatch a simplify orchestrator. Follow the [QA loop pattern](#qa-loop-pattern).
+Dispatch a simplify orchestrator using the template in `references/qa-loop-prompt.md` with these substitutions:
 
-```
-Agent tool:
-  description: "Simplify QA loop orchestrator"
-  subagent_type: general-purpose
-  prompt: |
-    Orchestrate a /simplify QA loop on branch <branch-name>.
-
-    DO NOT review the code yourself. Your only job is to loop and
-    dispatch fresh worker subagents.
-
-    Loop up to 3 iterations. Each iteration, dispatch a new Agent call:
-
-      Agent tool:
-        description: "Simplify iteration <n>"
-        subagent_type: general-purpose
-        prompt: |
-          Run the /simplify skill on branch <branch-name> right now,
-          as a fresh review. You have no prior context — approach the
-          diff from scratch and do not assume earlier passes exist.
-          Commit any fixes as atomic conventional commits. Do not push.
-          At the end, report exactly:
-            COMMITS: <n>
-            STATUS: CLEAN | DIRTY
-            NOTES: <one-line summary>
-          CLEAN = no further fixes needed. DIRTY = you applied fixes.
-
-    Termination:
-    - Stop when a worker reports STATUS: CLEAN.
-    - Stop when a worker reports COMMITS: 0.
-    - Stop after 3 iterations.
-
-    Final report back:
-      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
-      notes_by_iteration=[...]
-```
+| Field | Value |
+|---|---|
+| `<DESC>` | `Simplify QA loop orchestrator` |
+| `<SKILL>` | `/simplify` |
+| `<TARGET>` | `branch <branch-name>` |
+| `<COMMIT_RULE>` | `Commit any fixes as atomic conventional commits. Do not push.` |
+| `<EXTRA>` | (none) |
 
 ## 7. QA loop: audit tests
 
-Dispatch an audit-tests orchestrator using the same pattern.
+Dispatch an audit-tests orchestrator using the same template:
 
-```
-Agent tool:
-  description: "Audit-tests QA loop orchestrator"
-  subagent_type: general-purpose
-  prompt: |
-    Orchestrate an /audit-tests QA loop on branch <branch-name>.
-
-    DO NOT review the tests yourself. Dispatch fresh worker subagents.
-
-    Loop up to 3 iterations. Each iteration, dispatch:
-
-      Agent tool:
-        description: "Audit-tests iteration <n>"
-        subagent_type: general-purpose
-        prompt: |
-          Run the /audit-tests skill on branch <branch-name> vs main,
-          as a fresh review. You have no prior context — treat every
-          finding as newly discovered. Implement and commit fixes for
-          priority-1 findings only. Do not push.
-          At the end, report exactly:
-            COMMITS: <n>
-            STATUS: CLEAN | DIRTY
-            NOTES: <one-line summary>
-
-    Termination: CLEAN, zero-commit iteration, or 3 iterations.
-
-    Final report back:
-      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
-      notes_by_iteration=[...]
-```
+| Field | Value |
+|---|---|
+| `<DESC>` | `Audit-tests QA loop orchestrator` |
+| `<SKILL>` | `/audit-tests` |
+| `<TARGET>` | `branch <branch-name> vs main` |
+| `<COMMIT_RULE>` | `Implement and commit fixes for priority-1 findings only. Do not push.` |
+| `<EXTRA>` | `Treat every finding as newly discovered.` |
 
 ## 8. ADR check
 
@@ -313,39 +248,15 @@ Capture the PR number and URL — steps 12 and 13 need them.
 
 ## 12. QA loop: post-PR review
 
-Dispatch a pr-review orchestrator using the two-level pattern. This step is the strongest case for fresh-per-iteration context — review work is substantive, and the risk of a single subagent "remembering" prior findings and short-cutting the next pass is highest here.
+Dispatch a pr-review orchestrator using the same template. This step is the strongest case for fresh-per-iteration context — review work is substantive, and the risk of a single subagent "remembering" prior findings and short-cutting the next pass is highest here.
 
-```
-Agent tool:
-  description: "PR review QA loop orchestrator"
-  subagent_type: general-purpose
-  prompt: |
-    Orchestrate a /pr-review QA loop on PR #<pr-number>.
-
-    DO NOT review the PR yourself. Dispatch fresh worker subagents.
-
-    Loop up to 3 iterations. Each iteration, dispatch:
-
-      Agent tool:
-        description: "PR review iteration <n>"
-        subagent_type: general-purpose
-        prompt: |
-          Run the /pr-review skill on PR #<pr-number> right now,
-          as a fresh principal-engineer review. You have no prior
-          context — read the PR end-to-end and form independent
-          judgements. Do not assume any prior review has happened.
-          Commit fixes as atomic conventional commits and push.
-          At the end, report exactly:
-            COMMITS: <n>
-            STATUS: CLEAN | DIRTY
-            NOTES: <one-line summary>
-
-    Termination: CLEAN, zero-commit iteration, or 3 iterations.
-
-    Final report back:
-      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
-      notes_by_iteration=[...]
-```
+| Field | Value |
+|---|---|
+| `<DESC>` | `PR review QA loop orchestrator` |
+| `<SKILL>` | `/pr-review` |
+| `<TARGET>` | `PR #<pr-number>` |
+| `<COMMIT_RULE>` | `Commit fixes as atomic conventional commits and push.` |
+| `<EXTRA>` | `Read the PR end-to-end and form independent principal-engineer judgements.` |
 
 For security review, CI watch, and CodeRabbit responses beyond this loop, follow `references/post-pr-review.md`.
 
