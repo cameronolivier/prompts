@@ -27,6 +27,8 @@ allowed-tools:
 
 Orchestrate implementation of GitHub issues in parallel using git worktrees.
 
+> **Recommended model: Sonnet** — the dependency-graph + wave-planning analysis (phase 3-4) is the judgment-heavy part and well within Sonnet's range. Each dispatched `/implement` agent picks its own model (Sonnet for orchestrator body, per-step for QA workers).
+
 **Arguments:** `$ARGUMENTS` — GitHub labels, `epic <number>`, `status`, or `cleanup`.
 
 Composes with: `/implement` (per-issue agent), `work/scripts/work-launch.sh` (surface management).
@@ -79,11 +81,22 @@ Parse `$ARGUMENTS`:
 
 ## Phase 1: Detect project
 
+Reuse the `implement` skill's bundled detector — it returns repo, package manager, monorepo tool, and verification commands as JSON in one call:
+
 ```bash
-gh repo view --json nameWithOwner -q '.nameWithOwner'
+# Resolve the script (mirrors the work-launch.sh resolution pattern)
+DETECT=""
+for dir in \
+  "$HOME/.claude/skills/implement/scripts" \
+  "$(pwd)/skills/implement/scripts"; do
+  [ -x "$dir/detect-project.sh" ] && DETECT="$dir/detect-project.sh" && break
+done
+[ -z "$DETECT" ] && { echo "detect-project.sh not found — run install.sh -s implement"; exit 1; }
+
+"$DETECT" --pretty
 ```
 
-Read `CLAUDE.md` or `package.json` to understand monorepo layout, package manager, and test commands.
+Then read `CLAUDE.md` for project-specific conventions the detector can't infer.
 
 ## Phase 2: Fetch issues
 

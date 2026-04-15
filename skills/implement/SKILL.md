@@ -34,6 +34,8 @@ allowed-tools:
 
 Implement a single GitHub issue end-to-end using TDD in an isolated worktree.
 
+> **Recommended model: Sonnet** for the orchestrator body — it sequences phases and runs TDD. Opus is overkill here because the deep-judgment work is delegated to QA-loop workers (steps 6/7/12) which set their own per-step models. Haiku is too thin for TDD and architecture decisions.
+
 **Arguments:** `$ARGUMENTS` — issue number (e.g. `/implement 12`)
 
 Composes with: `/tdd`, `/simplify`, `/audit-tests`, `/pr-review`, `/create-pr`, `/security-review`, `/handle-pr-feedback`.
@@ -75,28 +77,20 @@ The full template — orchestrator prompt, worker contract, termination rules, p
 
 ## 1. Project detection
 
-Detect the repo and conventions automatically.
+Run the bundled script — emits a JSON snapshot of repo type, package manager, monorepo tool, and verification commands so the model doesn't re-probe the filesystem on every invocation:
 
 ```bash
-gh repo view --json nameWithOwner -q '.nameWithOwner'
+./scripts/detect-project.sh --pretty
+# or single fields:
+./scripts/detect-project.sh --field test       # → "pnpm test" / "cargo test" / etc.
+./scripts/detect-project.sh --field root       # → main repo root (handles worktrees)
 ```
 
-Read `CLAUDE.md`. Detect the package manager and test/build/lint commands from:
-
-- `package.json` / `pnpm-workspace.yaml` → pnpm / npm / yarn
-- `Cargo.toml` → cargo
-- `go.mod` → go
-- `pyproject.toml` / `requirements.txt` → python
-
-Identify the monorepo structure if applicable.
+Then read `CLAUDE.md` for any project-specific conventions the script can't infer (preferred test patterns, naming, no-mock rules, etc.).
 
 ## 2. Status file
 
-Resolve the main repo root:
-
-```bash
-git worktree list --porcelain | head -1 | sed 's/^worktree //'
-```
+Resolve the main repo root via `./scripts/detect-project.sh --field root`.
 
 Status file path: `<main-repo-root>/.olvrcc/status/issue-<n>.json`.
 
@@ -176,6 +170,8 @@ Dispatch a simplify orchestrator using the template in `references/qa-loop-promp
 | `<TARGET>` | `branch <branch-name>` |
 | `<COMMIT_RULE>` | `Commit any fixes as atomic conventional commits. Do not push.` |
 | `<EXTRA>` | (none) |
+| `<ORCH_MODEL>` | `haiku` |
+| `<WORKER_MODEL>` | `sonnet` |
 
 ## 7. QA loop: audit tests
 
@@ -188,6 +184,8 @@ Dispatch an audit-tests orchestrator using the same template:
 | `<TARGET>` | `branch <branch-name> vs main` |
 | `<COMMIT_RULE>` | `Implement and commit fixes for priority-1 findings only. Do not push.` |
 | `<EXTRA>` | `Treat every finding as newly discovered.` |
+| `<ORCH_MODEL>` | `haiku` |
+| `<WORKER_MODEL>` | `sonnet` |
 
 ## 8. ADR check
 
@@ -202,16 +200,15 @@ If yes, write an ADR in `docs/decisions/` (or the project's ADR directory) match
 
 ## 9. Verify
 
-Run the full verification suite, adapted to the detected project:
+Run the full verification suite using the commands from step 1's `detect-project.sh` output:
 
 ```bash
-# Examples — use whatever the project actually uses
-pnpm turbo run test
-pnpm turbo run typecheck
-pnpm turbo run lint
+$(./scripts/detect-project.sh --field test)
+$(./scripts/detect-project.sh --field typecheck)
+$(./scripts/detect-project.sh --field lint)
 ```
 
-Fix-and-rerun until all pass.
+Skip any field that returned empty — the project doesn't define it. Fix-and-rerun until all pass.
 
 ## 10. Pre-push review
 
@@ -257,6 +254,8 @@ Dispatch a pr-review orchestrator using the same template. This step is the stro
 | `<TARGET>` | `PR #<pr-number>` |
 | `<COMMIT_RULE>` | `Commit fixes as atomic conventional commits and push.` |
 | `<EXTRA>` | `Read the PR end-to-end and form independent principal-engineer judgements.` |
+| `<ORCH_MODEL>` | `haiku` |
+| `<WORKER_MODEL>` | `opus` |
 
 For security review, CI watch, and CodeRabbit responses beyond this loop, follow `references/post-pr-review.md`.
 
