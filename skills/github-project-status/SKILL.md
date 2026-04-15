@@ -18,6 +18,8 @@ allowed-tools:
 
 # GitHub Project Status
 
+> **Recommended model: Haiku** — bundled scripts (`bootstrap.sh`, `move.sh`) do the work; the skill is "decide which option name to pass to move.sh". Pure dispatch.
+
 Projects v2 boards have no "columns" — "columns" are values of the **Status** single-select field. Moving = editing the Status field via `gh project item-edit`. `gh project move` does not exist.
 
 **Every `gh project *` call is GraphQL.** Uncached, a single move costs 3–4 GraphQL calls. With a repo-committed config, it's 1 mutation. Always lead with the config. See `github-cli-rate-limits` for the rate-limit discipline this skill depends on.

@@ -9,6 +9,8 @@ allowed-tools:
 
 # Conservative gh CLI usage
 
+> **Recommended model: Haiku** — pure reference/discipline skill. Rules + lookup table; no reasoning required.
+
 Personal tokens get **5000 requests/hour for REST** and **5000 points/hour for GraphQL** — tracked separately. Cheap to blow through with loops. Once exhausted, you're blocked for up to an hour. Be stingy by default.
 
 ## Pre-flight: always check before bulk work

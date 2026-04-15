@@ -58,6 +58,8 @@ allowed-tools:
   - Bash(cypress:*)
 ---
 
+> **Recommended model: Sonnet** — reading test files, classifying gaps, writing/refactoring tests is firmly in Sonnet's range. Opus only earns its keep on architecturally-novel test design (rare).
+
 Audit test quality for a piece of work. Find weaknesses, classify by priority, implement what was requested.
 
 **Arguments:** `$ARGUMENTS` — optional PR number, branch name, or path. Default: current branch vs main.

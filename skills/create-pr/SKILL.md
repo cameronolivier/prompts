@@ -37,8 +37,9 @@ allowed-tools:
   - Bash(jq:*)
 ---
 
-> Cross-references: see `github-cli-rate-limits` for `gh` discipline; invoke `github-project-status` after the PR opens to move the linked issue to "In Review".
+> **Recommended model: Sonnet** — composing a readable PR body from a diff is composition work; Sonnet is the right tool. Haiku misses nuance in the "Additional Work" classification.
 
+> Cross-references: see `github-cli-rate-limits` for `gh` discipline; invoke `github-project-status` after the PR opens to move the linked issue to "In Review".
 
 Create a GitHub pull request with auto-generated content from the current branch.
 

@@ -50,6 +50,8 @@ allowed-tools:
 
 # PR Feedback Triage
 
+> **Recommended model: Opus** — verifying claims against the codebase and drafting credible pushback needs strong judgment. Sonnet rushes pushback replies and over-agrees with reviewers.
+
 Operationally process PR review feedback: fetch, triage, verify, fix, reply.
 
 **Mindset:** Verify before implementing. Push back when wrong. No performative agreement.

@@ -10,6 +10,8 @@ allowed-tools:
 
 # Ask Questions If Underspecified
 
+> **Recommended model: Sonnet** — light judgment about must-have vs nice-to-know, plus shaping multiple-choice options the user can answer fast. Haiku tends to ask too many questions; Opus is overkill.
+
 Ask the minimum set of clarifying questions needed to avoid wrong work. Do not start implementing until must-have questions are answered, or the user explicitly approves proceeding with stated assumptions.
 
 Composes with: `clarify` (use that one for plan interrogation, not requirement triage).

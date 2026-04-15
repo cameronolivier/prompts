@@ -13,6 +13,8 @@ allowed-tools:
 
 # cmux CLI
 
+> **Recommended model: Haiku** — reference/lookup skill. The cmux binary does the actual work; the skill maps user intent to flags.
+
 cmux is a native macOS terminal multiplexer built on Ghostty. It exposes a CLI and Unix socket API for scripting.
 
 ## Quick start

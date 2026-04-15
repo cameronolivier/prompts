@@ -9,6 +9,8 @@ allowed-tools:
 
 # Skill Authoring Conventions
 
+> **Recommended model: Haiku** — house-style reference, applied as a checklist. The skill being authored is what may need a heavier model; this layer is just rules.
+
 Personal layer on top of generic skill-writing skills. Those teach structure; this encodes the house style that's been learned the hard way.
 
 ## 1. Scope `allowed-tools` tightly

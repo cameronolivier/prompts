@@ -31,6 +31,8 @@ allowed-tools:
 
 # Clarify
 
+> **Recommended model: Opus** — deep tree-walking, weighing trade-offs across many decisions in one session. Sonnet truncates the interrogation early.
+
 Systematically interrogate a plan by walking each branch of the design tree, resolving dependencies between decisions one-by-one.
 
 ## Trigger
