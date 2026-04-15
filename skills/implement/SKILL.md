@@ -1,220 +1,360 @@
 ---
 name: implement
-description: |
-  Implement a single GitHub issue end-to-end using TDD in an isolated worktree. Run with `/implement <issue-number>`.
-
-  <example>
-  Context: User wants to work on a specific GitHub issue
-  user: "Implement issue #12"
-  assistant: "I'll use the implement agent to work on issue #12 in an isolated worktree."
-  <commentary>
-  The user wants a specific issue implemented. The implement agent handles the full lifecycle: worktree creation, TDD implementation, ADR generation, push, and PR creation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A stuck agent needs debugging — user resumes manually
-  user: "Pick up where the agent left off on issue #15"
-  assistant: "I'll use the implement agent to resume work on issue #15 — it will detect the existing branch and continue."
-  <commentary>
-  The implement agent detects existing branches and resumes from current state by running tests and reading recent commits.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The /work orchestrator dispatches this agent for each issue in a batch
-  user: "[dispatched by orchestrator with issue context]"
-  assistant: "Implementing issue #8 — following TDD workflow in worktree."
-  <commentary>
-  When dispatched by /work via `claude --worktree`, the agent is already in an isolated worktree and works autonomously.
-  </commentary>
-  </example>
+description: Implement a single GitHub issue end-to-end using TDD in an isolated worktree. Use when the user asks to "implement issue #N", "work on issue #N", "pick up issue #N", "resume issue #N", or when dispatched by /work. Handles worktree setup, TDD loop, simplify / audit-tests / review QA loops via fresh dispatched subagents, ADR generation, draft PR, and post-PR review.
 allowed-tools:
   - Read
   - Write
   - Edit
   - Glob
   - Grep
-  - Bash
   - Skill
+  - Agent
   - EnterWorktree
   - ExitWorktree
-skills:
-  - create-pr
-  - tdd
+  - Bash(gh issue view:*)
+  - Bash(gh issue comment:*)
+  - Bash(gh pr:*)
+  - Bash(gh repo view:*)
+  - Bash(gh api:*)
+  - Bash(gh run:*)
+  - Bash(git worktree:*)
+  - Bash(git branch:*)
+  - Bash(git diff:*)
+  - Bash(git log:*)
+  - Bash(git rev-parse:*)
+  - Bash(git push:*)
+  - Bash(git add:*)
+  - Bash(git commit:*)
+  - Bash(git status:*)
+  - Bash(mkdir:*)
+  - Bash(cp:*)
+  - Bash(cat:*)
+  - Bash(cmux:*)
 ---
 
-You are an implementation agent. You implement a single GitHub issue end-to-end using TDD in an isolated worktree.
+Implement a single GitHub issue end-to-end using TDD in an isolated worktree.
 
-**Arguments:** `$ARGUMENTS` — issue number (e.g., `/implement 12`)
+**Arguments:** `$ARGUMENTS` — issue number (e.g. `/implement 12`)
 
-## Project Detection
+Composes with: `/tdd`, `/simplify`, `/audit-tests`, `/pr-review`, `/create-pr`, `/security-review`, `/handle-pr-feedback`.
 
-Detect the project context automatically:
+## Workflow index
+
+1. [Project detection](#1-project-detection)
+2. [Status file](#2-status-file)
+3. [Setup worktree](#3-setup-worktree)
+4. [Gather context & plan](#4-gather-context--plan)
+5. [Implement with TDD](#5-implement-with-tdd)
+6. [QA loop: simplify](#6-qa-loop-simplify)
+7. [QA loop: audit tests](#7-qa-loop-audit-tests)
+8. [ADR check](#8-adr-check)
+9. [Verify](#9-verify)
+10. [Pre-push review](#10-pre-push-review)
+11. [Push & create draft PR](#11-push--create-draft-pr)
+12. [QA loop: post-PR review](#12-qa-loop-post-pr-review)
+13. [Agent complete](#13-agent-complete)
+
+> Extended post-PR flow (security review, CI watch, CodeRabbit responses) lives in `references/post-pr-review.md`. Load when step 12 surfaces non-trivial review work.
+
+## Status lifecycle
+
+`pending` → `in_progress` → `agent_complete` → `in_review` → `complete` (or `failed`).
+
+Update the status file at each transition. The file is created by `/work` with `pending`. For standalone runs, create it in step 2.
+
+## QA loop pattern
+
+Steps 6, 7, and 12 all follow the same two-level dispatch pattern so every iteration gets a truly fresh review with no carry-over from prior passes.
+
+- **Level 1 — orchestrator.** One `Agent` call from this workflow. `subagent_type: general-purpose`. Its job is to run the loop, not the review. It does not open files, read the diff, or reason about findings itself.
+- **Level 2 — iteration worker.** The orchestrator dispatches a brand-new `Agent` call per iteration. Each worker has zero context from prior iterations and reviews from scratch.
+
+Termination rules (orchestrator-enforced):
+
+- Stop on `STATUS: CLEAN` from the worker.
+- Stop if the worker made zero commits.
+- Stop after `QA_MAX_ITERATIONS` (default 3).
+
+Each worker reports only:
+
+```
+COMMITS: <n>
+STATUS: CLEAN | DIRTY
+NOTES: <one-line summary>
+```
+
+The orchestrator reports only the aggregate: `iterations`, `total_commits`, `final_status`, `notes_by_iteration`.
+
+---
+
+## 1. Project detection
+
+Detect the repo and conventions automatically.
 
 ```bash
 gh repo view --json nameWithOwner -q '.nameWithOwner'
 ```
 
-Read CLAUDE.md for project conventions. Detect the package manager and test/build/lint commands from:
-- `package.json` / `pnpm-workspace.yaml` → pnpm/npm/yarn
+Read `CLAUDE.md`. Detect the package manager and test/build/lint commands from:
+
+- `package.json` / `pnpm-workspace.yaml` → pnpm / npm / yarn
 - `Cargo.toml` → cargo
 - `go.mod` → go
 - `pyproject.toml` / `requirements.txt` → python
 
-Identify the monorepo structure if applicable (workspaces, packages, services directories).
+Identify the monorepo structure if applicable.
 
-## Status File
+## 2. Status file
 
-Detect the main repo root (the first line from `git worktree list --porcelain | head -1 | sed 's/^worktree //'`).
-
-Status file absolute path: `<main-repo-root>/.olvrcc/status/issue-<n>.json`
-
-Status lifecycle: `pending` → `in_progress` → `agent_complete` → `in_review` → `complete` (or `failed`).
-
-Update this file at each lifecycle stage. The file is created by `/work` with status `pending`. If running standalone (no status file exists), create the status directory and file yourself.
-
-## Input
-
-You receive a GitHub issue number via `$ARGUMENTS`. Fetch full context:
+Resolve the main repo root:
 
 ```bash
-gh issue view <number> --json number,title,body,labels
+git worktree list --porcelain | head -1 | sed 's/^worktree //'
 ```
 
-## Workflow
+Status file path: `<main-repo-root>/.olvrcc/status/issue-<n>.json`.
 
-### 1. Setup
+If the file exists, transition it to `in_progress`. If it does not (standalone run), create `.olvrcc/status/` and write the file with `pending` first, then transition.
 
-**Determine if you're already in a worktree:**
+## 3. Setup worktree
+
+Resolve the run context:
 
 ```bash
 git rev-parse --show-toplevel
 git worktree list --porcelain
 ```
 
-- **If already in a `.claude/worktrees/` path:** You were spawned by `/work`. You're ready to go — skip worktree creation.
-- **If in the main repo:** You're running standalone. Create a worktree manually for a clean branch name:
-  ```bash
-  mkdir -p .claude/worktrees
-  git worktree add .claude/worktrees/<issue>-<slug> -b <issue>-<slug>
-  cd .claude/worktrees/<issue>-<slug>
-  ```
-  If a `.worktreeinclude` file exists, copy matching gitignored files (`.env`, etc.) into the worktree.
+Inside `.claude/worktrees/`: dispatched by `/work` — skip worktree creation.
 
-**Check for an existing branch:**
+Inside the main repo (standalone):
 
 ```bash
-git branch -a | grep -E "(^|/)(<issue-number>)-"
+mkdir -p .claude/worktrees
+git worktree add .claude/worktrees/<issue>-<slug> -b <issue>-<slug>
+cd .claude/worktrees/<issue>-<slug>
 ```
 
-- **If branch exists:** You're resuming. Run tests to assess state, read recent commits via `git log --oneline -10`. Continue from current state.
-- **If no branch:** Starting fresh.
+If `.worktreeinclude` exists in the repo root, copy matching gitignored files (e.g. `.env`, `.env.local`) into the worktree.
 
-Update status file to `in_progress`:
+Detect whether this is a resume:
 
-```json
-{ "status": "in_progress" }
+```bash
+git branch -a | grep -E "(^|/)(<issue>)-"
 ```
 
-### 2. Gather Context & Plan
+On resume: run the project's tests, read `git log --oneline -10`, continue from current state.
 
-- Read the issue body **thoroughly** — identify every acceptance criterion, edge case, and constraint
-- Find and read any relevant plan files (e.g., `docs/`, `plans/`, `PLAN-*.md`)
-- Read existing code in the areas you'll be modifying
-- Identify which workspace package(s) this issue touches
-- **Draft a brief implementation plan** — this becomes the PR description later. Outline what you'll change, in what order, and why.
+Fetch full issue context:
 
-### 3. Implement Using TDD
+```bash
+gh issue view <number> --json number,title,body,labels
+```
 
-**CRITICAL: You MUST follow TDD — red-green-refactor.**
+## 4. Gather context & plan
+
+- Read the issue body thoroughly — capture every acceptance criterion and edge case.
+- Locate relevant plan files (`docs/`, `plans/`, `PLAN-*.md`).
+- Read existing code in the areas to modify.
+- Identify which workspace package(s) the issue touches.
+- Draft a brief implementation plan — this becomes the PR description in step 11.
+
+## 5. Implement with TDD
+
+**Non-negotiable: every behavior change starts with a failing test.**
 
 Invoke the `/tdd` skill.
 
-For each behavior in the acceptance criteria:
+Work vertical slice by vertical slice. For each acceptance criterion:
 
-1. **Red** — Write a failing test that describes the expected behavior
-2. Run the test to confirm it fails
-3. **Green** — Write the minimal code to make the test pass
-4. Run the test to confirm it passes
-5. **Refactor** — Clean up only if tests are green
-6. **Commit** — Atomic conventional commit. Let hooks run (do NOT use `--no-verify`).
+1. **Red** — write a failing test that describes the expected behaviour.
+2. Run the test; confirm it fails.
+3. **Green** — minimal code to make it pass.
+4. Run the test; confirm it passes.
+5. **Refactor** — only while tests are green.
+6. **Commit** — atomic conventional commit. Never `--no-verify`.
 
 ```bash
 git add <specific-files>
 git commit -m "<type>(scope): <description>"
 ```
 
-Work in vertical slices (tracer bullets), not horizontal layers. One behavior at a time.
+## 6. QA loop: simplify
 
-### 4. Simplify
+Dispatch a simplify orchestrator. Follow the [QA loop pattern](#qa-loop-pattern).
 
-After implementation, review for any over-engineered or unnecessary complexity. Invoke `/simplify` if available.
+```
+Agent tool:
+  description: "Simplify QA loop orchestrator"
+  subagent_type: general-purpose
+  prompt: |
+    Orchestrate a /simplify QA loop on branch <branch-name>.
 
-### 5. ADR Check
+    DO NOT review the code yourself. Your only job is to loop and
+    dispatch fresh worker subagents.
 
-After implementation, assess whether you made any architectural decisions:
+    Loop up to 3 iterations. Each iteration, dispatch a new Agent call:
 
-- New dependency added?
-- New pattern introduced?
-- Infrastructure choice made?
-- Significant trade-off?
+      Agent tool:
+        description: "Simplify iteration <n>"
+        subagent_type: general-purpose
+        prompt: |
+          Run the /simplify skill on branch <branch-name> right now,
+          as a fresh review. You have no prior context — approach the
+          diff from scratch and do not assume earlier passes exist.
+          Commit any fixes as atomic conventional commits. Do not push.
+          At the end, report exactly:
+            COMMITS: <n>
+            STATUS: CLEAN | DIRTY
+            NOTES: <one-line summary>
+          CLEAN = no further fixes needed. DIRTY = you applied fixes.
 
-If yes, create an ADR file in `docs/decisions/` (or the project's ADR directory) following existing naming conventions. Write the ADR content (context, decision, consequences).
+    Termination:
+    - Stop when a worker reports STATUS: CLEAN.
+    - Stop when a worker reports COMMITS: 0.
+    - Stop after 3 iterations.
 
-### 6. Verify
+    Final report back:
+      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
+      notes_by_iteration=[...]
+```
 
-Run the full verification suite (adapt commands to the detected project):
+## 7. QA loop: audit tests
+
+Dispatch an audit-tests orchestrator using the same pattern.
+
+```
+Agent tool:
+  description: "Audit-tests QA loop orchestrator"
+  subagent_type: general-purpose
+  prompt: |
+    Orchestrate an /audit-tests QA loop on branch <branch-name>.
+
+    DO NOT review the tests yourself. Dispatch fresh worker subagents.
+
+    Loop up to 3 iterations. Each iteration, dispatch:
+
+      Agent tool:
+        description: "Audit-tests iteration <n>"
+        subagent_type: general-purpose
+        prompt: |
+          Run the /audit-tests skill on branch <branch-name> vs main,
+          as a fresh review. You have no prior context — treat every
+          finding as newly discovered. Implement and commit fixes for
+          priority-1 findings only. Do not push.
+          At the end, report exactly:
+            COMMITS: <n>
+            STATUS: CLEAN | DIRTY
+            NOTES: <one-line summary>
+
+    Termination: CLEAN, zero-commit iteration, or 3 iterations.
+
+    Final report back:
+      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
+      notes_by_iteration=[...]
+```
+
+## 8. ADR check
+
+Assess whether the implementation introduced any architectural decision:
+
+- New dependency.
+- New pattern.
+- Infrastructure choice.
+- Significant trade-off.
+
+If yes, write an ADR in `docs/decisions/` (or the project's ADR directory) matching existing naming conventions. Include context, decision, and consequences.
+
+## 9. Verify
+
+Run the full verification suite, adapted to the detected project:
 
 ```bash
 # Examples — use whatever the project actually uses
-pnpm turbo run test      # or: npm test, cargo test, go test ./..., pytest
-pnpm turbo run typecheck # or: tsc --noEmit, mypy, etc.
-pnpm turbo run lint      # or: eslint, ruff, clippy, golangci-lint
+pnpm turbo run test
+pnpm turbo run typecheck
+pnpm turbo run lint
 ```
 
-All checks must pass before proceeding. If any fail, fix and re-run.
+Fix-and-rerun until all pass.
 
-### 7. Pre-Push Review
+## 10. Pre-push review
 
 Review the branch against main before pushing. For each changed file:
 
-1. **Type safety** — verify no `any` escapes, correct generics, proper nullability
-2. **Imports** — confirm all imports resolve, no unused imports, no circular deps
-3. **Dead code** — remove unreachable code, unused variables, commented-out blocks
-4. **Test coverage** — ensure every changed code path has a corresponding test
+1. **Type safety** — no `any` escapes, correct generics, proper nullability.
+2. **Imports** — all resolve, no unused, no circular deps.
+3. **Dead code** — no unreachable code, no unused variables, no commented-out blocks.
+4. **Test coverage** — every changed code path has a corresponding test.
 
-Fix any issues found, commit, and re-run the full test suite.
+Fix, commit, re-run verification.
 
-### 8. Push & Create Draft PR
+## 11. Push & create draft PR
 
-Before pushing, verify you're on the correct branch:
+Confirm the branch:
 
 ```bash
-git branch --show-current
+git branch --show-current   # must match <issue>-<slug>
 ```
 
-Confirm the branch name matches the expected pattern for this issue (e.g., `<issue>-<slug>`). If it doesn't match, something went wrong — stop and report failure.
+If the branch name is wrong, stop and report failure.
 
 ```bash
 git push -u origin <branch-name>
 ```
 
-Create a **draft PR** using the implementation plan as the description body. Run `/create-pr` with the `--draft` flag, or if calling `gh` directly:
+Invoke `/create-pr` with `--draft`, or fall back to `gh`:
 
 ```bash
 gh pr create --draft --title "<issue>-<slug>: <title>" --body "<implementation plan>"
 ```
 
-### 9. Agent Complete
+Capture the PR number and URL — steps 12 and 13 need them.
 
-Update status file to `agent_complete`:
+## 12. QA loop: post-PR review
+
+Dispatch a pr-review orchestrator using the two-level pattern. This step is the strongest case for fresh-per-iteration context — review work is substantive, and the risk of a single subagent "remembering" prior findings and short-cutting the next pass is highest here.
+
+```
+Agent tool:
+  description: "PR review QA loop orchestrator"
+  subagent_type: general-purpose
+  prompt: |
+    Orchestrate a /pr-review QA loop on PR #<pr-number>.
+
+    DO NOT review the PR yourself. Dispatch fresh worker subagents.
+
+    Loop up to 3 iterations. Each iteration, dispatch:
+
+      Agent tool:
+        description: "PR review iteration <n>"
+        subagent_type: general-purpose
+        prompt: |
+          Run the /pr-review skill on PR #<pr-number> right now,
+          as a fresh principal-engineer review. You have no prior
+          context — read the PR end-to-end and form independent
+          judgements. Do not assume any prior review has happened.
+          Commit fixes as atomic conventional commits and push.
+          At the end, report exactly:
+            COMMITS: <n>
+            STATUS: CLEAN | DIRTY
+            NOTES: <one-line summary>
+
+    Termination: CLEAN, zero-commit iteration, or 3 iterations.
+
+    Final report back:
+      iterations=<n>, total_commits=<m>, final_status=<CLEAN|STUCK>,
+      notes_by_iteration=[...]
+```
+
+For security review, CI watch, and CodeRabbit responses beyond this loop, follow `references/post-pr-review.md`.
+
+## 13. Agent complete
+
+Update the status file:
 
 ```json
-{
-  "status": "agent_complete",
-  "pr": "<pr-url>"
-}
+{ "status": "agent_complete", "pr": "<pr-url>" }
 ```
 
 Comment on the issue:
@@ -223,67 +363,57 @@ Comment on the issue:
 gh issue comment <number> --body "Draft PR created: <pr-url>"
 ```
 
-Notify via cmux (if available):
+Notify via cmux if available:
 
 ```bash
 cmux notify --title "Issue #<n> — draft PR ready" --body "PR: <pr-url>"
 ```
 
-**Worktree cleanup:** Do NOT exit or remove the worktree yourself. The worktree will be cleaned up by `/work cleanup` or by the user when they exit the Claude session (Claude prompts keep/remove on exit).
+**Do not remove the worktree.** Cleanup is `/work cleanup` or manual.
 
-### 10. Post-PR Review & CI (if requested)
+`in_review` and `complete` transitions are human-driven.
 
-These steps run only if the user asks the agent to continue after `agent_complete`, or if running standalone:
+---
 
-1. Run `/review` on the PR — fix any findings and push
-2. Run `/security-review` if available — fix any findings and push
-3. Monitor CI status via `gh pr checks <pr-number> --watch`
-   - If CI fails: read logs with `gh pr checks <pr-number>`, fix issues, push again
-4. Monitor for CodeRabbit or reviewer comments:
-   ```bash
-   gh pr view <pr-number> --json reviews,comments
-   gh api repos/{owner}/{repo}/pulls/<pr-number>/comments
-   ```
-   - Address each comment, push fixes, re-run checks until approved
+## Error handling
 
-### 11. Complete (human-driven)
+On failure (test unfixable, build broken, etc.):
 
-Status transitions after `agent_complete` are human-driven:
+1. **First attempt** — try a different approach. Re-read the issue, check plan files, look at similar patterns in the codebase.
+2. **Second failure** — stop.
 
-- **`in_review`** — set when the PR is taken out of draft (ready for review)
-- **`complete`** — set when the PR is merged
+   Push current state:
 
-These are typically managed by `/work status` or `/work cleanup`, not by the implement agent.
-
-## Error Handling
-
-If you encounter a failure (test won't pass, build breaks, etc.):
-
-1. **First attempt:** Try a different approach. Re-read the issue, check plan files, look at similar patterns in the codebase.
-2. **Second failure:** Stop. Push your current state:
    ```bash
    git push -u origin <branch-name>
    ```
-   Update status file to `failed`:
+
+   Update status to `failed`:
+
    ```json
-   {
-     "status": "failed",
-     "blocker": "<description of what failed and what was tried>"
-   }
+   { "status": "failed", "blocker": "<what failed and what was tried>" }
    ```
+
    Comment on the issue:
+
    ```bash
    gh issue comment <number> --body "Blocked: <description>"
    ```
-   Notify via cmux (if available):
-   ```bash
-   cmux notify --title "Issue #<n> blocked" --body "<blocker>"
-   ```
 
-## Conventions
+   Notify via cmux if available.
 
-- **Commits:** Conventional commits — `feat(scope):`, `fix(scope):`, `chore(scope):`, `test(scope):`
-- **Concise:** Terse commit messages, sacrifice grammar for brevity
-- **No skipping hooks:** Never use `--no-verify`
-- **Atomic commits:** One logical change per commit, target specific files
-- **Tests first:** Always TDD. No implementation without a failing test first.
+## Examples
+
+### Standalone
+
+> User: "Implement issue #12"
+> The agent creates a worktree, runs the TDD loop, the simplify loop, the audit-tests loop, creates a draft PR, runs the post-PR review loop, and hands off at `agent_complete`.
+
+### Resume
+
+> User: "Pick up issue #15 where the agent left off"
+> Detects the existing branch, runs tests to assess state, reads recent commits, continues from current state.
+
+### Dispatched by /work
+
+> Already inside a `.claude/worktrees/` worktree — skip setup (step 3), run the full workflow autonomously.
