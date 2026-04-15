@@ -85,6 +85,30 @@ install_skill_npx() {
     echo -e "${GREEN}✓${NC} Installed skill: $skill_name"
 }
 
+# Copy skill into ~/.claude/skills/ and rewrite .olvrcc → .moai across all
+# *.md and *.sh files. Plain copy, not a symlink — divergence from the repo
+# is the point of this flag (personal status-dir rename).
+install_skill_moai() {
+    local skill_name="$1"
+    local source_path="$REPO_DIR/$REPO_SKILLS/$skill_name"
+    local target_path="$SKILLS_DIR/$skill_name"
+
+    if [[ ! -d "$source_path" ]]; then
+        echo -e "${RED}Error: skill '$skill_name' not found in $REPO_SKILLS/${NC}"
+        return 1
+    fi
+
+    if [[ -e "$target_path" ]] || [[ -L "$target_path" ]]; then
+        rm -rf "$target_path"
+    fi
+
+    cp -R "$source_path" "$target_path"
+    find "$target_path" -type f \( -name '*.md' -o -name '*.sh' \) \
+        -exec sed -i '' 's|\.olvrcc|.moai|g' {} +
+
+    echo -e "${GREEN}✓${NC} Installed skill (moai): $skill_name (.olvrcc → .moai)"
+}
+
 list_available() {
     echo "Available commands:"
     # Top-level commands
@@ -125,12 +149,15 @@ show_help() {
     echo ""
     echo "Skills install via npx skills add by default."
     echo "Use --symlink to install as direct symlinks instead."
+    echo "Use --moai to copy skills and rewrite .olvrcc → .moai (personal install)."
     echo ""
     echo "Examples:"
     echo "  $0                       # Install all commands"
     echo "  $0 clarify               # Install /clarify command"
     echo "  $0 -s clarify            # Install clarify skill (npx)"
     echo "  $0 -s --symlink clarify  # Install clarify skill (symlink)"
+    echo "  $0 -s --moai implement   # Install implement (.olvrcc → .moai)"
+    echo "  $0 -s --moai --all       # Install all skills with .moai rename"
     echo "  $0 -s --all              # Install all skills (npx)"
     echo "  $0 -u clarify            # Uninstall /clarify command"
 }
@@ -155,6 +182,10 @@ while [[ $# -gt 0 ]]; do
             SKILL_METHOD="symlink"
             shift
             ;;
+        --moai)
+            SKILL_METHOD="moai"
+            shift
+            ;;
         --list|-l)
             list_available
             exit 0
@@ -175,24 +206,24 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Execute
+install_one_skill() {
+    local name="$1"
+    case "$SKILL_METHOD" in
+        symlink) install_skill_symlink "$name" ;;
+        moai)    install_skill_moai "$name" ;;
+        *)       install_skill_npx "$name" ;;
+    esac
+}
+
 if [[ "$TYPE" == "skills" ]]; then
     if [[ "$TARGET" == "all" ]]; then
         for dir in "$REPO_SKILLS"/*/; do
             if [[ -d "$dir" ]]; then
-                skill_name="$(basename "$dir")"
-                if [[ "$SKILL_METHOD" == "symlink" ]]; then
-                    install_skill_symlink "$skill_name"
-                else
-                    install_skill_npx "$skill_name"
-                fi
+                install_one_skill "$(basename "$dir")"
             fi
         done
     else
-        if [[ "$SKILL_METHOD" == "symlink" ]]; then
-            install_skill_symlink "$TARGET"
-        else
-            install_skill_npx "$TARGET"
-        fi
+        install_one_skill "$TARGET"
     fi
 else
     if [[ "$TARGET" == "all" ]]; then
