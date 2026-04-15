@@ -93,7 +93,32 @@ The description is the only thing shown to the agent when picking skills. Match 
 - List the automation triggers too: "when starting/finishing/reviewing work on an issue".
 - Avoid generic verbs ("helps with", "works on") — the agent can't distinguish those from five other skills.
 
-## 7. Don't duplicate existing skills
+## 7. Set `model:` in frontmatter to bind cost to need
+
+Claude Code skills accept a `model:` field in YAML frontmatter ([docs](https://code.claude.com/docs/en/skills#frontmatter-reference)). Set it on every owned skill — this binds the runtime model so the skill's cost shape matches the work it actually does.
+
+```yaml
+---
+name: my-skill
+description: ...
+allowed-tools: [...]
+model: sonnet      # haiku | sonnet | opus
+---
+```
+
+Picking the right model:
+
+| Tier | When to pick | Examples |
+|---|---|---|
+| **`haiku`** | Reference / lookup / pure dispatch to a script. No multi-step reasoning. | `cmux-cli`, `github-cli-rate-limits`, `github-project-status` (move.sh does the work), `skill-conventions` |
+| **`sonnet`** | Most coding, composing, light judgment, orchestration that delegates the hard parts. | `implement`, `work`, `audit-tests`, `create-pr`, `ask-questions-if-underspecified` |
+| **`opus`** | Deep judgment held across a long context — interrogating a plan, drafting credible technical pushback, principal-engineer code review. | `clarify`, `handle-pr-feedback` |
+
+For dispatched subagents within the skill (Agent tool calls), pass `model:` per dispatch — the same alias values. Orchestrator calls (loop + parse `STATUS:`/`COMMITS:` lines) are almost always `haiku`; the worker takes the substantive model.
+
+**Don't infer from precedent.** The docs are authoritative — when in doubt about whether a frontmatter field is supported, fetch [https://code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) directly. Treating a feature as "probably unsupported" because it isn't in a third-party guide is how you leave money on the table.
+
+## 8. Don't duplicate existing skills
 
 Before creating a skill, check the installed list for overlap. Prefer:
 
@@ -106,6 +131,8 @@ The prompts repo has many skill-writing skills already. This one exists only bec
 ## Checklist before shipping a skill
 
 - [ ] `allowed-tools` scoped with `Bash(cmd:*)` form
+- [ ] `model:` set in frontmatter (haiku/sonnet/opus) — match cost to work
+- [ ] Per-dispatch `model:` set on every internal `Agent` tool call
 - [ ] Repeated bash >20 lines → extracted to `scripts/`
 - [ ] Scripts `chmod +x` and `bash -n` clean
 - [ ] No reliance on CLAUDE.md / memory for per-repo data
