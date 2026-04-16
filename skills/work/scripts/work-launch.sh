@@ -6,7 +6,6 @@ set -euo pipefail
 # Supports both cmux and tmux via $DISPATCH env var
 
 DISPATCH="${DISPATCH:-}"
-BOOT_TIMEOUT="${BOOT_TIMEOUT:-15}"
 
 usage() {
   cat <<EOF
@@ -14,14 +13,13 @@ Usage: work-launch.sh <command> [options]
 
 Commands:
   grid <count>   Create a grid of <count> panes, print surface/pane IDs (one per line)
-  launch         Send cd + claude + /implement to a specific surface
-  bootstrap      Create a tmux session, boot claude, send /work (for outside-tmux use)
+  launch         Boot claude with /implement as initial prompt in a surface
+  bootstrap      Create a tmux session and boot claude with /work as initial prompt
   close          Close a pane (exit claude, remove split)
   status         Check if a surface still exists
 
 Environment:
   DISPATCH       Required. "cmux" or "tmux"
-  BOOT_TIMEOUT   Seconds to wait for claude to boot (default: 15)
   TMUX_SESSION   tmux session name (default: "work")
 EOF
   exit 1
@@ -112,15 +110,7 @@ for s in surfs:
 cmux_launch() {
   local surface="$1" issue="$2" worktree="$3"
 
-  # cd into worktree and boot claude
-  cmux send-surface --surface "$surface" "cd $worktree && claude"
-  cmux send-key-surface --surface "$surface" enter
-
-  # Wait for claude to boot (no read-screen API — use timed wait)
-  sleep "$BOOT_TIMEOUT"
-
-  # Send /implement command
-  cmux send-surface --surface "$surface" "/implement $issue"
+  cmux send-surface --surface "$surface" "cd $worktree && claude \"/implement $issue\""
   cmux send-key-surface --surface "$surface" enter
 
   echo "$surface"
@@ -186,9 +176,7 @@ tmux_grid() {
 tmux_launch() {
   local pane_id="$1" issue="$2" worktree="$3"
 
-  tmux send-keys -t "$pane_id" "cd $worktree && claude" Enter
-  sleep "$BOOT_TIMEOUT"
-  tmux send-keys -t "$pane_id" "/implement $issue" Enter
+  tmux send-keys -t "$pane_id" "cd $worktree && claude \"/implement $issue\"" Enter
 
   echo "$pane_id"
 }
@@ -223,14 +211,8 @@ tmux_bootstrap() {
   # Create detached session in the project directory
   tmux new-session -d -s "$session" -c "$project_dir"
 
-  # Boot claude in the first pane
-  tmux send-keys -t "$session" "claude" Enter
-
-  # Wait for claude to boot
-  sleep "$BOOT_TIMEOUT"
-
-  # Send the /work command with the original arguments
-  tmux send-keys -t "$session" "/work $work_args" Enter
+  # Boot claude with /work as initial prompt
+  tmux send-keys -t "$session" "claude \"/work $work_args\"" Enter
 
   echo "$session"
 }
