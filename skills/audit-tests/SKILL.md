@@ -44,7 +44,6 @@ allowed-tools:
   - Bash(git rev-parse:*)
   - Bash(gh pr diff:*)
   - Bash(gh pr view:*)
-  - Bash(cat:*)
   - Bash(ls:*)
   - Bash(npx:*)
   - Bash(pnpm:*)
@@ -58,8 +57,6 @@ allowed-tools:
   - Bash(cypress:*)
 model: sonnet
 ---
-
-> **Recommended model: Sonnet** — reading test files, classifying gaps, writing/refactoring tests is firmly in Sonnet's range. Opus only earns its keep on architecturally-novel test design (rare).
 
 Audit test quality for a piece of work. Find weaknesses, classify by priority, implement what was requested.
 
@@ -164,7 +161,7 @@ Group findings by test type:
 
 ### No-gap outcome
 
-If analysis surfaces zero P1 findings and no changed source files are untested, the audit is CLEAN. Do not manufacture P2/P3 work to justify the run. In QA-loop mode, emit `STATUS: CLEAN` and exit. In interactive mode, report CLEAN and ask whether to proceed with P2/P3.
+If analysis surfaces zero P1 findings and no changed source files are untested, the audit is CLEAN. Do not manufacture P2/P3 work to justify the run. In QA-loop mode, emit the full QA-loop contract (see §7) with `STATUS: CLEAN` and exit. In interactive mode, report CLEAN and ask whether to proceed with P2/P3.
 
 ## 5. Report
 
@@ -197,7 +194,7 @@ Always produce this, in both modes:
 
 ### Plan file
 
-Write detailed findings to `plans/test-audit-<branch>.md` (or `~/.claude/plans/` outside a repo). Structure:
+**Interactive mode only.** Write detailed findings to `plans/test-audit-<branch>.md` (or `~/.claude/plans/` outside a repo). Structure:
 
 ```markdown
 # Test Audit: <branch-name>
@@ -224,14 +221,7 @@ Branch: <name> vs main
 
 ### Interactive prompt
 
-**Only in interactive mode.** After the summary, ask:
-
-> What would you like me to implement?
-> - "all critical" — all P1 across all test types
-> - "all unit tests" — all priorities for unit tests
-> - "all critical unit tests" — P1 unit tests only
-> - "everything" — every finding
-> - Or list item numbers from the plan file
+**Only in interactive mode.** After the summary, ask what to implement. Accept natural language — examples: "all critical", "all unit tests", "all critical unit tests", "everything", or item numbers from the plan file.
 
 ## 6. Implement
 

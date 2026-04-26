@@ -155,9 +155,9 @@ it('rejects access from another tenant', async () => {
 it('handles duplicate webhook delivery', async () => {
   const event = createWebhookEvent({ id: 'evt_1' })
   await handleWebhook(event)
-  await handleWebhook(event) // duplicate
+  await handleWebhook(event)
   const records = await db.query('SELECT * FROM payments WHERE event_id = $1', ['evt_1'])
-  expect(records).toHaveLength(1) // not duplicated
+  expect(records).toHaveLength(1)
 })
 ```
 
@@ -205,7 +205,6 @@ describe('POST /api/projects', () => {
 
     expect(res.status).toBe(201)
 
-    // Verify persistence — don't trust just the response
     const saved = await db.query('SELECT * FROM projects WHERE id = $1', [res.body.id])
     expect(saved[0].name).toBe('New Project')
   })
