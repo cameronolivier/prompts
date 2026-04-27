@@ -92,6 +92,8 @@ Format the plan as a readable table. Group by action:
 | Date | Project | Computed | Logged | Delta |
 | 2026-04-21 | Kairo | 4.5h | 2.0h | +2.5h |
 
+Delta minutes are rounded up to the nearest 30 min before posting (e.g. an 8-min delta is logged as 30 min).
+
 **Already correct** (action = "ok"): list as "✓ date project"
 
 **Over-logged** (action = "over"): warn — "⚠ mo-reap shows more time than computed for X on Y. Edit manually in the mo-reap UI if needed."

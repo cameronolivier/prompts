@@ -7,6 +7,7 @@ Usage:
   python3 plan.py [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--config PATH]
 """
 import json
+import math
 import os
 import re
 import sys
@@ -176,13 +177,15 @@ def main():
         for date_str, computed_h in sorted(days.items()):
             logged_h = round(logged_dev.get((proj_name, date_str), 0.0), 2)
             delta_h = round(computed_h - logged_h, 2)
-            delta_min = round(delta_h * 60)
             if abs(delta_h) < 0.05:
                 action = "ok"
+                delta_min = 0
             elif delta_h > 0:
                 action = "add"
+                delta_min = math.ceil(delta_h * 60 / 30) * 30  # round up to nearest 30 min
             else:
                 action = "over"
+                delta_min = round(delta_h * 60)
             plan.append({
                 "project": proj_name,
                 "project_code": reap_proj["code"],
