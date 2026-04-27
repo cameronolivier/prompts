@@ -8,6 +8,7 @@ Usage:
 """
 import json
 import os
+import re
 import sys
 import subprocess
 import argparse
@@ -85,25 +86,42 @@ def main():
     computed = json.loads(calc.stdout)  # {project_name: {date_str: hours}}
 
     # Build project name → mo-reap project_code mapping
+    # Also build pattern list for matching API projectName (UUID ≠ project_code)
     name_to_code = {}
+    pattern_map = []  # [(pattern_lower, config_project_name)]
     for proj in config["projects"]:
         code = proj.get("adapters", {}).get("mo-reap", {}).get("project_code")
         if code:
             name_to_code[proj["name"]] = str(code)
+        for pat in proj.get("patterns", []):
+            pattern_map.append((pat.lower(), proj["name"]))
+
+    def _norm(s: str) -> str:
+        return re.sub(r"[\s\-_]", "", (s or "")).lower()
+
+    def match_project_name(api_name: str) -> str | None:
+        api_norm = _norm(api_name)
+        for pat, name in pattern_map:
+            if _norm(pat) in api_norm:
+                return name
+        return None
 
     # Fetch existing mo-reap entries for the week
     entries = fetch_time_entries(api_key, from_date, to_date)
 
-    # Sum dev hours (no description) per (project_id, date)
+    # Sum dev hours (no description) per (config_project_name, date).
+    # API returns projectId as UUID — match via projectName + config patterns instead.
     logged_dev = defaultdict(float)
     meeting_count = 0
     for e in entries:
         if (e.get("description") or "").strip():
             meeting_count += 1
             continue  # meeting/call — leave untouched
-        proj_id = str(e.get("projectId", ""))
+        proj_name = match_project_name(e.get("projectName", ""))
+        if not proj_name:
+            continue  # unknown project, skip
         entry_date = (e.get("localEntryDate") or "")[:10]
-        logged_dev[(proj_id, entry_date)] += float(e.get("duration", 0))
+        logged_dev[(proj_name, entry_date)] += float(e.get("duration", 0))
 
     # Build reconciliation plan
     plan = []
@@ -112,7 +130,7 @@ def main():
         if not code:
             continue  # No mo-reap mapping — skip
         for date_str, computed_h in sorted(days.items()):
-            logged_h = round(logged_dev.get((code, date_str), 0.0), 2)
+            logged_h = round(logged_dev.get((proj_name, date_str), 0.0), 2)
             delta_h = round(computed_h - logged_h, 2)
             delta_min = round(delta_h * 60)
             if abs(delta_h) < 0.05:
