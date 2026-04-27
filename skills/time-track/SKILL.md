@@ -59,11 +59,13 @@ Example for Kairo + MoAI:
     },
     {
       "name": "MoAI",
-      "patterns": ["cam-prompts", "mo-ai", "MoharaVault"]
+      "patterns": ["cam-prompts", "mo-ai", "MoharaVault", "moai"]
     }
   ]
 }
 ```
+
+Adapter-specific fields (e.g. `adapters.mo-reap.project_code`) are only needed as overrides when a downstream adapter cannot auto-match the project name.
 
 Patterns are substring-matched against directory names in `~/.claude/projects/`. Worktrees matching the same patterns are included automatically.
 

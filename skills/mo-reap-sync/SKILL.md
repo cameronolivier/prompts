@@ -21,26 +21,32 @@ Composes with: `time-track` (this skill calls its `calculate.py` internally).
 ## Prerequisites
 
 1. **time-track skill installed** at `~/.claude/skills/time-track/`
-2. **Config** at `~/.claude/time-track-config.json` with `adapters.mo-reap.project_code` for each project:
+2. **Config** at `~/.claude/time-track-config.json` — only `name` and `patterns` are required. The adapter auto-discovers the mo-reap project by normalizing the config name and patterns against `/api/v1/projects`. Add `adapters.mo-reap.project_code` only to override when auto-match is ambiguous:
 
 ```json
 {
   "projects": [
     {
       "name": "Kairo",
-      "patterns": ["kairo"],
-      "adapters": {
-        "mo-reap": { "project_code": "743399" }
-      }
+      "patterns": ["kairo"]
     },
     {
       "name": "MoAI",
-      "patterns": ["cam-prompts", "mo-ai", "MoharaVault"],
-      "adapters": {
-        "mo-reap": { "project_code": "521637" }
-      }
+      "patterns": ["cam-prompts", "mo-ai", "MoharaVault", "moai"]
     }
   ]
+}
+```
+
+If the auto-match warns "ambiguous" or "no match", add an explicit override:
+
+```json
+{
+  "name": "SomeProject",
+  "patterns": ["some-proj"],
+  "adapters": {
+    "mo-reap": { "project_code": "123456" }
+  }
 }
 ```
 
