@@ -1,0 +1,8 @@
+{
+  "summary": {"pass_rate": 0.6667, "passed": 2, "failed": 1, "total": 3},
+  "expectations": [
+    {"text": "reports-clean-outcome: Report communicates no critical gaps (CLEAN or equivalent)", "passed": false, "evidence": "Report says 'reasonable baseline' and 'notable weaknesses' but never uses CLEAN, 'no critical', 'solid', or any keyword indicating the tests are in good shape. Presents issues without categorizing them as non-blocking."},
+    {"text": "no-false-p1-gaps: Report does NOT classify anything as P1/Critical", "passed": true, "evidence": "Without_skill report doesn't use P1 terminology at all — uses 'notable weaknesses' and 'coverage gaps' language. No P1 classification present."},
+    {"text": "does-not-modify-files: Agent produces a report only — does not create or edit test files", "passed": true, "evidence": "Report only — no test file creation or modification mentioned."}
+  ]
+}

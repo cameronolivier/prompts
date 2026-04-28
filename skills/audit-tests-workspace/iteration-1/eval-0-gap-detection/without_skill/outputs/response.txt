@@ -1,0 +1,100 @@
+# Test Audit: feature/billing-auth
+
+## Branch context
+
+Both `main` and `feature/billing-auth` share a single commit (`87f9f21 chore: initial`).
+There are no branch-specific commits on `feature/billing-auth`; all code was introduced in one shot.
+The entire codebase is treated as the audit surface.
+
+---
+
+## Files audited
+
+| File | Role |
+|------|------|
+| `src/billing.ts` | Production — invoice calculation + card charging |
+| `src/auth.ts` | Production — permission check + session revocation |
+| `src/billing.test.ts` | Tests — only test file present |
+
+---
+
+## Critical gap: auth.ts has zero tests
+
+`src/auth.ts` exports two functions and defines key types. Neither function has any test coverage:
+
+### `checkPermission(user, resource, action): boolean`
+
+Logic branches that need coverage:
+- Throws when `user` is falsy (null / undefined) — ✗ untested
+- Returns `true` for any `admin` role regardless of tenantId / permissions — ✗ untested
+- Returns `false` when `user.tenantId !== resource.tenantId` (cross-tenant access) — ✗ untested
+- Returns `true` when action is in `resource.permissions` for same-tenant non-admin — ✗ untested
+- Returns `false` when action is NOT in `resource.permissions` for same-tenant non-admin — ✗ untested
+- `viewer` role (distinct from `member`) behaves identically to `member` in current impl — ✗ untested / unverified
+
+The cross-tenant isolation path is the highest-severity gap: a regression there would be a security bug and there is no safety net.
+
+### `revokeSession(userId): void`
+
+- Removes session from in-memory map — ✗ untested
+- Fires audit log entry — ✗ untested
+- No-op behaviour when userId is not in map — ✗ untested
+
+---
+
+## Billing tests present but weak
+
+`src/billing.test.ts` covers `calculateInvoice` and `chargeCard` at a surface level only.
+
+### `calculateInvoice` — 2 assertions needed, 1 trivial present
+
+```
+it('calculates invoice', () => {
+  const result = calculateInvoice([{ price: 10, quantity: 2 }])
+  expect(result).toBeTruthy()   // ← only checks object is not null/undefined
+})
+```
+
+Issues:
+- **No value assertions.** `expect(result).toBeTruthy()` passes for any non-null object, including one with all zeros. A silent math regression (e.g. tax formula break) would not be caught.
+- Missing: `expect(result.subtotal).toBe(20)`, `expect(result.tax).toBe(2)`, `expect(result.total).toBe(22)`.
+- Missing edge cases: empty items array (`[]`) → should produce `{ subtotal: 0, tax: 0, total: 0 }`.
+- Missing: multi-item totals, floating-point rounding (the `Math.round` path is untested).
+- Missing: zero-price or zero-quantity items.
+
+### `chargeCard` — similarly superficial
+
+```
+it('charges card', async () => {
+  const result = await chargeCard('cust_123', 100)
+  expect(result).toBeDefined()  // ← passes for any truthy return
+})
+```
+
+Issues:
+- **No value assertions.** `status`, `amount`, and `id` shape are not checked.
+- Missing: `amount <= 0` throws (`chargeCard('cust', 0)` and `chargeCard('cust', -1)` — the guard on line 19 is completely untested).
+- Missing: failed charge path. The stripe stub always returns `succeeded`; no test covers the `status !== 'succeeded'` branch (would need a mock/spy to simulate failure).
+- The `stripe.charge` call is not mocked, so tests hit the in-file stub — acceptable for this codebase, but the non-deterministic `id` field (`Math.random`) makes asserting the result shape fragile without a matcher.
+
+---
+
+## Summary table
+
+| Function | File | Tests exist | Assertions meaningful | Edge cases | Risk |
+|----------|------|-------------|----------------------|------------|------|
+| `checkPermission` | auth.ts | NO | — | — | HIGH (security) |
+| `revokeSession` | auth.ts | NO | — | — | MEDIUM |
+| `calculateInvoice` | billing.ts | yes | NO — trivial truthy | NO | MEDIUM |
+| `chargeCard` | billing.ts | yes | NO — trivial defined | NO | MEDIUM |
+
+**Overall: 0 of 4 functions are adequately tested. The most critical gap is auth.ts having no test file at all.**
+
+---
+
+## Recommendations (not implemented — audit only)
+
+1. Create `src/auth.test.ts` covering all branches of `checkPermission` and `revokeSession`.
+2. Replace `expect(result).toBeTruthy()` in billing tests with specific value assertions.
+3. Add edge-case tests: empty invoice, zero/negative charge amounts, failed charge status.
+4. Add a mock for `stripe.charge` to test the failure branch.

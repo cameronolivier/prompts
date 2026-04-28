@@ -1,0 +1,15 @@
+To commit your login fix changes using xgit, run the interactive commit wizard:
+
+```bash
+xgit c
+```
+
+That's the alias for `xgit commit`. It walks you through:
+
+1. **Type** — e.g. `fix` (correct choice for a bug/login fix)
+2. **Scope** — e.g. `auth` or `login`
+3. **Message** — a short description of what changed
+
+xgit formats everything as a proper conventional commit automatically.
+
+Make sure your changes are staged first (`git add <files>`) before running `xgit c`, as xgit wraps git commit — it doesn't stage files for you.

@@ -1,0 +1,10 @@
+{
+  "summary": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5},
+  "expectations": [
+    {"text": "emits-commits-line: Output contains a COMMITS: N line", "passed": true, "evidence": "Response ends with 'COMMITS: 2' — exact format."},
+    {"text": "emits-status-line: Output contains STATUS: CLEAN or STATUS: DIRTY", "passed": true, "evidence": "Response ends with 'STATUS: CLEAN'."},
+    {"text": "emits-notes-line: Output contains a NOTES: line with content", "passed": true, "evidence": "'NOTES: auth.ts was entirely untested (auth+tenancy P1); billing assertions were toBeTruthy/toBeDefined only — both fixed; runner unavailable (no node_modules)'"},
+    {"text": "creates-auth-test-file: Agent actually creates auth.test.ts (P1 gap implemented)", "passed": true, "evidence": "Commit 2 is 'test(auth): add full test suite for checkPermission and revokeSession — covers tenancy isolation, permission matching, admin bypass, and invalid input'. auth.test.ts created."},
+    {"text": "no-interactive-prompt: Agent does NOT ask the user what to implement", "passed": true, "evidence": "Agent went straight to implementing P1 gaps without any user prompt. No 'What would you like me to implement' question."}
+  ]
+}

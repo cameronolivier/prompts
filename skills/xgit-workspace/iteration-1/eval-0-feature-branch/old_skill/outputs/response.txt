@@ -1,0 +1,11 @@
+Use `xgit b` to create the branch. Since this is a new feature, use the `-f` flag:
+
+```bash
+xgit b -f 123 "add user profiles to dashboard"
+```
+
+This creates: `feature/DEC-123_add_user_profiles_to_dashboard`
+
+The ticket number is just the numeric part (`123`) — xgit picks up the project prefix (`DEC`) from `xgitrc.json`.
+
+If you haven't run `xgit init` in this repo yet, do that first to generate the config file.

@@ -1,0 +1,25 @@
+{
+  "expectations": [
+    {
+      "text": "mentions-xgit-init: Response includes `xgit init`",
+      "passed": true,
+      "evidence": "Step 2 is 'Run init in your repo: xgit init'."
+    },
+    {
+      "text": "mentions-xgitrc: Response mentions xgitrc.json",
+      "passed": true,
+      "evidence": "xgitrc.json mentioned multiple times."
+    },
+    {
+      "text": "mentions-project-key: Response explains the project field and how to set it to ACME",
+      "passed": true,
+      "evidence": "Step 3 shows setting `\"project\": \"ACME\"`."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0,
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  }
+}

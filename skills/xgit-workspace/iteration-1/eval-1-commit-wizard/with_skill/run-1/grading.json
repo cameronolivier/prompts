@@ -1,0 +1,25 @@
+{
+  "expectations": [
+    {
+      "text": "uses-xgit-commit: Response mentions `xgit c` or `xgit commit`",
+      "passed": true,
+      "evidence": "Response opens with `xgit c` and explains it."
+    },
+    {
+      "text": "mentions-interactive: Response mentions the interactive/wizard nature of the commit command",
+      "passed": true,
+      "evidence": "Response says 'launches an interactive conventional commit wizard'."
+    },
+    {
+      "text": "no-plain-git-commit: Does NOT suggest plain `git commit -m` as the primary approach",
+      "passed": true,
+      "evidence": "Mentions `git commit` only as what NOT to use. No `git commit -m` anywhere."
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0,
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  }
+}

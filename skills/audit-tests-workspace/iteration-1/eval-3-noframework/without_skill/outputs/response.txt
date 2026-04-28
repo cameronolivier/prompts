@@ -1,0 +1,99 @@
+# Test Audit — feature/projects-api vs main
+
+## Branch context
+
+Branch: feature/projects-api
+Commit: 451dcd1 (single commit — "chore: initial", no divergence from main visible via diff)
+The baseline.json is empty (`{}`), indicating no prior baseline metrics exist.
+
+---
+
+## Files under test
+
+| File | Purpose |
+|---|---|
+| src/projects.ts | Core domain: createProject, getProject, deleteProject |
+| src/auth.ts | Type definitions only (User, Role) |
+| src/projects.test.ts | Only test file on the branch |
+
+---
+
+## Test run results
+
+2 tests, 2 passing, 0 failing. Both pass trivially.
+
+```
+✓ createProject > throws when name is empty
+✓ getProject > returns project by id
+```
+
+---
+
+## Issues found
+
+### 1. getProject test is empty (critical)
+
+`getProject > returns project by id` contains no assertions. The test body is blank — it passes vacuously. This gives false confidence that getProject works.
+
+### 2. deleteProject has zero test coverage
+
+`deleteProject` is entirely untested. It contains two distinct authorization branches:
+- Non-owner, non-admin user → should throw Forbidden
+- Owner or admin → should succeed and delete
+
+Neither is exercised.
+
+### 3. Cross-tenant access control is not tested
+
+`getProject` enforces `row.tenantId !== user.tenantId` and throws Forbidden. This security-critical path has no test. A regression here could leak data across tenants.
+
+### 4. No mock/stub for the db layer
+
+`db` is a module-level stub that always returns `[]`. Tests rely on this implicitly rather than setting up explicit mocks via `vi.mock` or `vi.spyOn`. This means:
+- `createProject` always receives `undefined` as the returned row (destructuring `[row]` from `[]`), yet the happy-path (successful creation) is never tested.
+- `getProject` always receives no row, so the "not found" error path fires on every call — the success path is structurally unreachable without a real mock.
+
+### 5. No happy-path test for createProject
+
+The only `createProject` test covers the validation guard (`name required`). There is no test that a valid name produces a project with the correct tenantId/ownerId wired from the user object.
+
+### 6. No happy-path test for getProject
+
+See issue 1 and 4 combined. The empty test body means even if a mock were wired up, we'd never assert on the returned project shape.
+
+### 7. No integration or contract tests
+
+The db module is a placeholder (`const db = { query: async () => [] }`). There are no integration tests against a real or in-memory database, so the SQL queries themselves are never validated.
+
+---
+
+## Coverage summary (by behaviour)
+
+| Behaviour | Covered |
+|---|---|
+| createProject — rejects blank name | Yes |
+| createProject — inserts with correct tenant/owner | No |
+| getProject — returns matching project | No (empty test) |
+| getProject — throws when not found | No |
+| getProject — throws when tenant mismatch | No |
+| deleteProject — owner can delete | No |
+| deleteProject — admin can delete | No |
+| deleteProject — non-owner/non-admin throws | No |
+
+1 of 8 behaviours covered (12.5%).
+
+---
+
+## Risk assessment
+
+High. The untested cross-tenant guard in `getProject` and the fully untested `deleteProject` authorization logic represent security-critical gaps. The passing test suite creates misleading confidence — both green tests either assert on a trivial guard or assert on nothing at all.
+
+---
+
+## Recommendations (not implemented)
+
+1. Mock `db.query` explicitly with `vi.mock`/`vi.spyOn` so tests control returned rows.
+2. Add happy-path tests for `createProject` and `getProject`.
+3. Add "not found" and "tenant mismatch" tests for `getProject`.
+4. Add full coverage for `deleteProject` (owner success, admin success, non-owner forbidden).
+5. Consider a lightweight in-memory DB or repository pattern to enable integration-level tests without a live database.

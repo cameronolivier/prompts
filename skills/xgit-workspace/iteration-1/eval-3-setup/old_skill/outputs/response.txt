@@ -1,0 +1,70 @@
+Here's how to set up xgit with your ACME Jira project key.
+
+## 1. Install xgit globally
+
+```bash
+npm install -g @olvrcc/xgit@latest
+```
+
+## 2. Run init in your repo
+
+From your repo root:
+
+```bash
+xgit init
+```
+
+This generates an `xgitrc.json` config file.
+
+## 3. Set your project key
+
+Open `xgitrc.json` and update the `project` field to `ACME`:
+
+```json
+{
+  "project": "ACME",
+  "feat": "feature",
+  "bug": "bug",
+  "hotfix": "hotfix",
+  "release": "release",
+  "docs": "docs",
+  "ticketSeparator": "_",
+  "descriptorCase": "snake"
+}
+```
+
+## 4. Verify the config
+
+```bash
+cat xgitrc.json
+```
+
+## 5. Commit the config
+
+Commit `xgitrc.json` so the whole team shares the same settings.
+
+## You're ready
+
+Create branches using your ticket numbers:
+
+```bash
+xgit b -f 42 "add user auth"   # → feature/ACME-42_add_user_auth
+xgit b -b 99 "fix login crash"  # → bug/ACME-99_fix_login_crash
+```
+
+Make commits with the interactive wizard:
+
+```bash
+xgit c
+```
+
+Fuzzy-checkout branches by ticket number or keyword:
+
+```bash
+xgit f 42        # finds feature/ACME-42_add_user_auth
+xgit f auth      # finds any branch containing "auth"
+```
+
+Optional config tweaks:
+- `ticketSeparator`: change `_` to `/` or `-` if your team prefers `ACME-42/add_user_auth`
+- `descriptorCase`: change `snake` to `kebab` for `add-user-auth` style descriptors

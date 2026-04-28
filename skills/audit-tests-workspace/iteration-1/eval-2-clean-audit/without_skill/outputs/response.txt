@@ -1,0 +1,80 @@
+# Test Audit: feature/utils-refactor vs main
+
+## Branch Comparison
+
+Both `feature/utils-refactor` and `main` point to the same commit (`553913c`). There are no new commits on the feature branch — no diff exists between the branches. The audit therefore covers the current state of the test suite as written.
+
+---
+
+## Test File: src/utils.test.ts
+
+Tests 3 functions exported from `src/utils.ts`: `formatCurrency`, `parseDate`, `clamp`.
+
+Total: 12 tests across 3 describe blocks.
+
+---
+
+## Findings by Function
+
+### formatCurrency (4 tests)
+
+**Coverage gaps:**
+- The EUR test (`expect(formatCurrency(100, 'EUR')).toContain('100')`) is a weak assertion — it only checks the number appears in the output string. It does not verify the currency symbol, locale formatting, or that a non-USD currency is actually applied. A test with `toBe('€100.00')` or equivalent would be meaningful.
+- No test for `NaN` or `Infinity` input.
+- No test for very large numbers (potential edge case with Intl formatting).
+- No test for `null`/`undefined` input (the TypeScript signature takes `number`, but runtime callers may pass unexpected values).
+- Locale-dependent: `'$1,234.56'` and `'-$50.00'` assertions assume `en-US` locale. These tests may fail in non-US environments depending on the Node/OS ICU data. This is a portability risk.
+
+**Quality:**
+- The 3 USD-specific tests use precise `toBe` assertions — good.
+- The EUR test is too loose and should be tightened.
+
+### parseDate (4 tests)
+
+**Coverage gaps:**
+- No test for whitespace-only input (e.g. `'   '`) — `new Date('   ')` produces a valid date in some runtimes.
+- No test for Unix epoch string (`'0'`) — `new Date('0')` is valid and may be surprising.
+- No test for partial dates like `'2024-01'` or `'2024'`.
+- No test that confirms the returned `Date` has the correct year/month/day for `'2024-01-15'` — only checks `instanceof Date`, meaning a wrong-date parse would pass.
+- The ISO 8601 with-time test is the strongest (asserts exact `.toISOString()`). The plain date test should do the same.
+
+**Quality:**
+- Null-return paths are well covered (empty string, garbage input).
+- Time-zone handling is implicit: `'2024-01-15'` parsed by `new Date()` is ambiguous (UTC midnight vs local midnight depending on runtime). No test pins this behaviour.
+
+### clamp (4 tests)
+
+**Coverage gaps:**
+- No test for `min > max` (inverted range) — the implementation will silently return a nonsensical result.
+- No test for float values (e.g. `clamp(0.5, 0, 1)`).
+- No test for boundary values: `clamp(0, 0, 10)` and `clamp(10, 0, 10)` (exactly at min and max) are untested — the implementation uses `<=` semantics via `Math.min/max`, but an explicit boundary test documents expected behaviour.
+
+**Quality:**
+- The `min === max` case is a useful edge case and is covered.
+- All assertions use `toBe` with exact values — good.
+
+---
+
+## Cross-Cutting Issues
+
+1. **No negative/error path for types**: None of the tests verify behaviour for `NaN`, `Infinity`, or wrong-type inputs. TypeScript enforces types at compile time, but runtime callers (especially from JS or API boundaries) may pass unexpected values.
+
+2. **Locale sensitivity**: `formatCurrency` assertions hardcode locale-specific strings. Tests will be brittle in CI environments with different ICU data.
+
+3. **No test for missing/new exports**: If `utils.ts` gains new exports during the refactor, there are no tests for them. The import is named (`{ formatCurrency, parseDate, clamp }`), so new functions won't accidentally be tested.
+
+4. **One-liner test style**: Most tests are single-line `it(... => { expect(...) })`. This is concise but makes it harder to add setup, teardown, or multi-step assertions later. Not a bug, but a readability/extensibility note.
+
+5. **No branch-specific changes**: Since `feature/utils-refactor` adds no commits, there is nothing new to audit relative to main. If the intent is to refactor `utils.ts`, tests have not been updated ahead of or alongside that refactor — this is a risk if behaviour changes during the refactor.
+
+---
+
+## Summary Table
+
+| Function       | Tests | Missing edge cases | Assertion quality |
+|----------------|-------|--------------------|-------------------|
+| formatCurrency | 4     | NaN, Infinity, locale risk, EUR assertion weak | Mixed (3 strong, 1 weak) |
+| parseDate      | 4     | Whitespace, partial dates, date value correctness, TZ ambiguity | Moderate |
+| clamp          | 4     | Inverted range, floats, exact boundary values | Good |
+
+**Overall:** The test suite is a reasonable baseline — 12 tests covering the happy path and key null/range paths. The main weaknesses are a loose EUR assertion, missing boundary/edge cases (inverted clamp range, whitespace dates), locale-sensitive string assertions in `formatCurrency`, and no verification of the actual date value in the basic `parseDate` test.

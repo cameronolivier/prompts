@@ -1,0 +1,10 @@
+{
+  "summary": {"pass_rate": 0.8, "passed": 4, "failed": 1, "total": 5},
+  "expectations": [
+    {"text": "detects-auth-untested: Report flags that auth.ts has no corresponding test file", "passed": true, "evidence": "'Critical gap: auth.ts has zero tests' — section heading, identifies both checkPermission and revokeSession as untested."},
+    {"text": "classifies-auth-as-p1: Missing auth tests classified as P1/Critical", "passed": true, "evidence": "Uses 'Critical gap' as section heading and 'Risk: HIGH (security)' in summary table."},
+    {"text": "identifies-weak-assertions: Report flags toBeTruthy or toBeDefined as weak/insufficient", "passed": true, "evidence": "Explicitly quotes 'toBeTruthy() — passes for any non-null object' and 'toBeDefined()'."},
+    {"text": "identifies-missing-mock: Report identifies stripe client is not mocked", "passed": true, "evidence": "Mentions '(would need a mock)' for failure branch; references stripe client in summary table."},
+    {"text": "writes-plan-file: Agent writes a plan file to plans/ as specified by the skill", "passed": false, "evidence": "No plan file written. Agent saved report to response.txt only — no plans/ directory mentioned."}
+  ]
+}

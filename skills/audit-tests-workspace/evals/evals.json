@@ -1,0 +1,139 @@
+{
+  "skill_name": "audit-tests",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Audit the tests on this branch",
+      "expected_output": "Report identifying: (1) auth.ts completely untested → P1, (2) billing.test.ts missing stripe mock → P1, (3) weak toBeTruthy/toBeDefined assertions → P2, (4) no failure-path tests for chargeCard → P2. Produces a plan file. Offers interactive prompt for what to implement.",
+      "assertions": [
+        {
+          "name": "detects-auth-untested",
+          "description": "Report flags that auth.ts has no corresponding test file",
+          "type": "keyword",
+          "value": ["auth.ts", "auth"]
+        },
+        {
+          "name": "classifies-auth-as-p1",
+          "description": "Missing auth tests classified as P1/Critical (not just P2/P3)",
+          "type": "keyword",
+          "value": ["P1", "Critical", "critical"]
+        },
+        {
+          "name": "identifies-weak-assertions",
+          "description": "Report flags toBeTruthy or toBeDefined as weak/insufficient assertions",
+          "type": "keyword",
+          "value": ["toBeTruthy", "toBeDefined", "weak assertion", "assertion quality"]
+        },
+        {
+          "name": "identifies-missing-mock",
+          "description": "Report identifies the stripe client is not mocked (non-deterministic / real network call)",
+          "type": "keyword",
+          "value": ["mock", "stripe", "network", "non-deterministic"]
+        },
+        {
+          "name": "writes-plan-file",
+          "description": "Agent writes a plan file to plans/ or ~/.claude/plans/ as specified by the skill",
+          "type": "keyword",
+          "value": ["plans/", "plan file", "test-audit"]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "QA-loop: audit tests P1 only, auto-implement, report COMMITS/STATUS/NOTES",
+      "expected_output": "Implements auth.test.ts and fixes billing mock without prompting user. Emits exactly: COMMITS: N\\nSTATUS: CLEAN|DIRTY\\nNOTES: one-line. No extra prose after the contract block.",
+      "assertions": [
+        {
+          "name": "emits-commits-line",
+          "description": "Output contains a COMMITS: N line",
+          "type": "regex",
+          "value": "COMMITS: \\d+"
+        },
+        {
+          "name": "emits-status-line",
+          "description": "Output contains STATUS: CLEAN or STATUS: DIRTY",
+          "type": "regex",
+          "value": "STATUS: (CLEAN|DIRTY)"
+        },
+        {
+          "name": "emits-notes-line",
+          "description": "Output contains a NOTES: line",
+          "type": "regex",
+          "value": "NOTES: .+"
+        },
+        {
+          "name": "creates-auth-test-file",
+          "description": "Agent actually creates auth.test.ts or equivalent (P1 gap implemented)",
+          "type": "keyword",
+          "value": ["auth.test", "auth.spec"]
+        },
+        {
+          "name": "no-interactive-prompt",
+          "description": "Agent does NOT ask the user what to implement (QA-loop should be fully autonomous)",
+          "type": "not_keyword",
+          "value": ["What would you like", "what to implement", "shall I", "should I implement"]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Audit the tests on this branch",
+      "expected_output": "Reports CLEAN (or equivalent). Does not manufacture P2/P3 work items to fill the report. May note minor style suggestions but presents them as optional. Does not modify any files.",
+      "assertions": [
+        {
+          "name": "reports-clean-outcome",
+          "description": "Report communicates that tests are in good shape / no critical gaps (CLEAN or equivalent)",
+          "type": "keyword",
+          "value": ["CLEAN", "no critical", "good coverage", "well covered", "solid", "no gaps found", "no P1"]
+        },
+        {
+          "name": "no-false-p1-gaps",
+          "description": "Report does NOT classify anything as P1/Critical in this well-tested codebase",
+          "type": "not_keyword",
+          "value": ["P1 Critical", "P1: ", "P1 —", "Critical gap"]
+        },
+        {
+          "name": "does-not-modify-files",
+          "description": "Agent produces a report only — does not create or edit test files",
+          "type": "not_keyword",
+          "value": ["wrote", "created test", "added test", "git commit", "git add"]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Audit the tests on this branch",
+      "expected_output": "Identifies: (1) deleteProject completely untested — P1 (deletion/destruction), (2) cross-tenant access not tested — P1 (tenant isolation), (3) getProject happy-path test is empty/stub — P1. Recommends integration tests using Vitest (not Playwright/Cypress which aren't in the project). Does NOT suggest adding a missing E2E framework.",
+      "assertions": [
+        {
+          "name": "identifies-delete-project-gap",
+          "description": "Report flags deleteProject as untested (deletion is domain-critical)",
+          "type": "keyword",
+          "value": ["deleteProject", "delete", "deletion"]
+        },
+        {
+          "name": "identifies-tenant-isolation-gap",
+          "description": "Report flags missing cross-tenant access tests",
+          "type": "keyword",
+          "value": ["tenant", "cross-tenant", "tenantId", "isolation"]
+        },
+        {
+          "name": "no-e2e-framework-suggestion",
+          "description": "Report does NOT suggest adding Playwright or Cypress (no E2E framework in project)",
+          "type": "not_keyword",
+          "value": ["Playwright", "Cypress", "E2E framework", "add playwright", "install playwright"]
+        },
+        {
+          "name": "recommends-integration-tests",
+          "description": "Report recommends integration tests (the gap is integration-level, vitest can do it)",
+          "type": "keyword",
+          "value": ["integration", "Integration"]
+        }
+      ],
+      "files": []
+    }
+  ]
+}

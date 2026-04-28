@@ -1,0 +1,80 @@
+Here's how to set up xgit in your new repo with the ACME Jira project key.
+
+## 1. Install xgit (if not already installed)
+
+```bash
+xgit --version
+```
+
+If the command isn't found:
+
+```bash
+npm install -g @olvrcc/xgit@latest
+```
+
+## 2. Initialise the repo
+
+Run once per repo from the project root:
+
+```bash
+xgit init
+```
+
+This generates an `xgitrc.json` file in the current directory.
+
+## 3. Set your Jira project key
+
+Open `xgitrc.json` and change the `project` field from whatever default was set to `ACME`:
+
+```json
+{
+  "project": "ACME",
+  "feat": "feature",
+  "bug": "bug",
+  "hotfix": "hotfix",
+  "release": "release",
+  "docs": "docs",
+  "ticketSeparator": "_",
+  "descriptorCase": "snake"
+}
+```
+
+The other fields have sensible defaults — adjust them if you want different branch naming conventions:
+
+| Field | Options | Effect |
+|-------|---------|--------|
+| `ticketSeparator` | `_` / `/` / `-` | Separator between ticket number and description |
+| `descriptorCase` | `snake` / `kebab` / `camel` / `pascal` | Case style for the description part of branch names |
+
+## 4. Verify config
+
+```bash
+cat xgitrc.json
+```
+
+## 5. You're ready — basic workflow
+
+```bash
+# Create a feature branch for ticket 42
+xgit b -f 42 "add user auth"
+# → creates branch: feature/ACME-42_add_user_auth
+
+# Make changes, then commit interactively
+xgit c
+
+# Switch to another ticket's branch by fuzzy search
+xgit f 42          # by ticket number
+xgit f auth        # by keyword
+```
+
+## Branch type flags recap
+
+| Flag | Type | Use for |
+|------|------|---------|
+| `-f` | `feature/` | New functionality |
+| `-b` | `bug/` | Non-urgent bug fix |
+| `-h` | `hotfix/` | Urgent production fix |
+| `-r` | `release/` | Release prep |
+| `-d` | `docs/` | Docs only |
+
+That's all there is to it. Commit `xgitrc.json` into your repo so the whole team shares the same config.

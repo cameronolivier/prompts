@@ -1,0 +1,30 @@
+To start working on DEC-123, use xgit to create a feature branch:
+
+```bash
+xgit b -f 123 "add user profiles to dashboard"
+```
+
+This creates a branch named: `feature/DEC-123_add_user_profiles_to_dashboard`
+
+xgit reads your Jira project key from `xgitrc.json` to prefix the ticket number automatically.
+
+---
+
+**If xgit isn't set up yet:**
+
+1. Install: `npm install -g @olvrcc/xgit@latest`
+2. Init the repo (once): `xgit init` — then edit `xgitrc.json` and set `"project": "DEC"`
+3. Then run the branch command above.
+
+---
+
+**Branch type flags:**
+
+| Flag | Branch type | Use when |
+|------|-------------|----------|
+| `-f` | `feature/…` | New functionality (your case) |
+| `-b` | `bug/…` | Bug fix |
+| `-h` | `hotfix/…` | Urgent production fix |
+| `-d` | `docs/…` | Docs only |
+
+Once on the branch, use `xgit c` instead of `git commit` — it runs an interactive conventional commit wizard.

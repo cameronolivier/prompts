@@ -1,0 +1,9 @@
+{
+  "summary": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4},
+  "expectations": [
+    {"text": "identifies-delete-project-gap: Report flags deleteProject as untested (deletion is domain-critical)", "passed": true, "evidence": "'deleteProject is never imported or tested — contains the two most security-sensitive permission branches' listed as P1 gap #2."},
+    {"text": "identifies-tenant-isolation-gap: Report flags missing cross-tenant access tests", "passed": true, "evidence": "'Cross-tenant access via getProject is untested — a user from tenantId: t2 requesting a project owned by tenantId: t1 should be rejected' listed as P1 gap #4."},
+    {"text": "no-e2e-framework-suggestion: Report does NOT suggest adding Playwright or Cypress", "passed": true, "evidence": "Overview explicitly notes 'no Testing Library, no Playwright, no Cypress'. No suggestion to add E2E framework anywhere in the report."},
+    {"text": "recommends-integration-tests: Report recommends integration tests for DB-touching logic", "passed": true, "evidence": "P3 item: 'Consider a lightweight in-memory DB or repository pattern to enable integration-level tests without a live database.'"}
+  ]
+}
