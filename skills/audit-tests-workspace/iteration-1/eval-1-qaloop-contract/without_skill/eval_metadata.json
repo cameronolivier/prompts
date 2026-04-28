@@ -1,1 +1,0 @@
-{"eval_id": 1, "eval_name": "qaloop-contract", "variant": "without_skill", "prompt": "QA-loop: audit tests P1 only, auto-implement, report COMMITS/STATUS/NOTES"}

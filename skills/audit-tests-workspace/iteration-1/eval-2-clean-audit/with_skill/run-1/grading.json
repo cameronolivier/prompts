@@ -1,8 +1,0 @@
-{
-  "summary": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3},
-  "expectations": [
-    {"text": "reports-clean-outcome: Report communicates no critical gaps (CLEAN or equivalent)", "passed": true, "evidence": "'P1 Critical: 0' in findings overview; interactive prompt says 'all critical — nothing to do (zero P1 gaps)'."},
-    {"text": "no-false-p1-gaps: Report does NOT classify anything as P1/Critical in this well-tested codebase", "passed": true, "evidence": "P1 Critical count is explicitly 0. All findings are P2 or P3."},
-    {"text": "does-not-modify-files: Agent produces a report only — does not create or edit test files", "passed": true, "evidence": "Report and plan file written only. No test file creation or modification mentioned."}
-  ]
-}

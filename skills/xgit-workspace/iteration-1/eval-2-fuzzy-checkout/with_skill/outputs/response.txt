@@ -1,7 +1,0 @@
-Use xgit's fuzzy checkout command with the ticket number:
-
-```bash
-xgit f 456
-```
-
-This searches your local branches for anything matching "456" and checks it out automatically — no need to remember the full branch name.

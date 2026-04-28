@@ -1,7 +1,0 @@
-Use `xgit f` (fuzzy checkout) with the ticket number:
-
-```bash
-xgit f 456
-```
-
-This fuzzy-searches your local branches for anything containing "456" and checks it out — so even if the full branch name is something like `feature/PROJ-456_fix_payment_flow`, you don't need to remember it.
