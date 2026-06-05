@@ -17,7 +17,7 @@ from collections import defaultdict
 
 CONFIG_PATH = os.path.expanduser("~/.claude/time-track-config.json")
 PROJECTS_DIR = os.path.expanduser("~/.claude/projects")
-SESSION_GAP_MINUTES = 60
+DEFAULT_SESSION_GAP_MINUTES = 20  # override via config "session_gap_minutes" or --gap
 DAY_BOUNDARY_HOUR = 6  # 6am local: messages before 6am count as previous day
 
 
@@ -52,7 +52,7 @@ def extract_timestamps(filepath: str) -> list:
     return out
 
 
-def merge_sessions(sorted_ts: list, gap: int = SESSION_GAP_MINUTES):
+def merge_sessions(sorted_ts: list, gap: int = DEFAULT_SESSION_GAP_MINUTES):
     """Split into (start, end) sessions on gaps > `gap` minutes."""
     if not sorted_ts:
         return []
@@ -66,8 +66,13 @@ def merge_sessions(sorted_ts: list, gap: int = SESSION_GAP_MINUTES):
     return sessions
 
 
-def compute(config_path: str, from_date: date, to_date: date) -> dict:
+def project_sessions(
+    config_path: str, from_date: date, to_date: date, gap: int = None
+) -> dict:
+    """Return {project: {day: [(start, end), ...]}} with timezone-aware timestamps."""
     config = json.load(open(config_path))
+    if gap is None:
+        gap = config.get("session_gap_minutes", DEFAULT_SESSION_GAP_MINUTES)
     all_dirs = {}
     if os.path.isdir(PROJECTS_DIR):
         for e in os.listdir(PROJECTS_DIR):
@@ -94,12 +99,19 @@ def compute(config_path: str, from_date: date, to_date: date) -> dict:
         for ts in all_ts:
             by_day[adjusted_local_date(ts)].append(ts)
 
-        project_hours = {}
-        for day, tss in by_day.items():
-            sessions = merge_sessions(sorted(tss))
-            minutes = sum(max((e - s).total_seconds() / 60, 1) for s, e in sessions)
-            project_hours[str(day)] = round(minutes / 60, 2)
+        results[name] = {
+            str(day): merge_sessions(sorted(tss), gap) for day, tss in by_day.items()
+        }
+    return results
 
+
+def compute(config_path: str, from_date: date, to_date: date, gap: int = None) -> dict:
+    results = {}
+    for name, days in project_sessions(config_path, from_date, to_date, gap).items():
+        project_hours = {}
+        for day, sessions in days.items():
+            minutes = sum(max((e - s).total_seconds() / 60, 1) for s, e in sessions)
+            project_hours[day] = round(minutes / 60, 2)
         results[name] = project_hours
     return results
 
@@ -109,7 +121,13 @@ def main():
     parser.add_argument("--from", dest="from_date")
     parser.add_argument("--to", dest="to_date")
     parser.add_argument("--config", default=CONFIG_PATH)
-    parser.add_argument("--output", default="table", choices=["table", "json"])
+    parser.add_argument("--output", default="table", choices=["table", "json", "sessions"])
+    parser.add_argument(
+        "--gap",
+        type=int,
+        default=None,
+        help="Session-break threshold in minutes (overrides config; default 20)",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.config):
@@ -122,7 +140,33 @@ def main():
         else prev_week_range()
     )
 
-    results = compute(args.config, from_date, to_date)
+    if args.output == "sessions":
+        sessions = project_sessions(args.config, from_date, to_date, args.gap)
+        tzname = datetime.now().astimezone().strftime("%Z")
+        printed = False
+        for proj in sorted(sessions):
+            days = sessions[proj]
+            if not days:
+                continue
+            printed = True
+            print(f"\n{proj}  (times in {tzname})")
+            for day in sorted(days):
+                windows = days[day]
+                label = date.fromisoformat(day).strftime("%-m/%-d %a")
+                total_h = sum(max((e - s).total_seconds() / 60, 1) for s, e in windows) / 60
+                print(f"  {label}:")
+                for s, e in windows:
+                    ls, le = s.astimezone(), e.astimezone()
+                    dur = max((e - s).total_seconds() / 3600, 1 / 60)
+                    print(f"    {ls:%H:%M} → {le:%H:%M}  ({dur:.2f}h)")
+                print(f"    day total: {total_h:.2f}h")
+        if not printed:
+            print(f"No activity found between {from_date} and {to_date}")
+        else:
+            print()
+        return
+
+    results = compute(args.config, from_date, to_date, args.gap)
 
     if args.output == "json":
         print(json.dumps(results, indent=2))

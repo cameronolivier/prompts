@@ -18,7 +18,7 @@ Calculate active Claude Code session hours per project per day from `~/.claude/p
 
 **Key rules applied:**
 - 6am→6am day boundary (pre-6am messages count as previous day)
-- Gaps >1h between messages = session break
+- Gaps beyond the session-break threshold (default 20min; set `session_gap_minutes` in config or pass `--gap N`) = session break
 - Parallel agents in the same project are unioned (no double-counting)
 - Parallel sessions across different projects both get credited
 
@@ -94,7 +94,16 @@ For machine-readable output (used by mo-reap-sync):
 python3 ~/.claude/skills/time-track/scripts/calculate.py --output json [...]
 ```
 
-Display the table output directly. Append a one-line note:
+When the user asks for **start/finish times** of each working period (timesheet
+detail), use `--output sessions`:
+```bash
+python3 ~/.claude/skills/time-track/scripts/calculate.py --output sessions [...]
+```
+This lists each session window per day with a `day total`. Clock times are
+rendered in the machine's **local timezone** (via `astimezone()`) — header shows
+which (e.g. `times in SAST`). Durations are timezone-independent.
+
+Display the output directly. Append a one-line note:
 > Hours = active Claude Code sessions only. Anything done without Claude (docs, calls, browser) won't appear.
 
 ## Troubleshooting
