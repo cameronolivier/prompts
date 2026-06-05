@@ -18,6 +18,7 @@ from collections import defaultdict
 CONFIG_PATH = os.path.expanduser("~/.claude/time-track-config.json")
 PROJECTS_DIR = os.path.expanduser("~/.claude/projects")
 DEFAULT_SESSION_GAP_MINUTES = 20  # override via config "session_gap_minutes" or --gap
+DEFAULT_MIN_SESSION_MINUTES = 5  # drop blocks shorter than this; override via config "min_session_minutes" or --min-session
 DAY_BOUNDARY_HOUR = 6  # 6am local: messages before 6am count as previous day
 
 
@@ -67,12 +68,17 @@ def merge_sessions(sorted_ts: list, gap: int = DEFAULT_SESSION_GAP_MINUTES):
 
 
 def project_sessions(
-    config_path: str, from_date: date, to_date: date, gap: int = None
+    config_path: str, from_date: date, to_date: date, gap: int = None, min_minutes: int = None
 ) -> dict:
-    """Return {project: {day: [(start, end), ...]}} with timezone-aware timestamps."""
+    """Return {project: {day: [(start, end), ...]}} with timezone-aware timestamps.
+
+    Sessions shorter than `min_minutes` are dropped (noise blocks).
+    """
     config = json.load(open(config_path))
     if gap is None:
         gap = config.get("session_gap_minutes", DEFAULT_SESSION_GAP_MINUTES)
+    if min_minutes is None:
+        min_minutes = config.get("min_session_minutes", DEFAULT_MIN_SESSION_MINUTES)
     all_dirs = {}
     if os.path.isdir(PROJECTS_DIR):
         for e in os.listdir(PROJECTS_DIR):
@@ -100,14 +106,25 @@ def project_sessions(
             by_day[adjusted_local_date(ts)].append(ts)
 
         results[name] = {
-            str(day): merge_sessions(sorted(tss), gap) for day, tss in by_day.items()
+            str(day): [
+                (s, e)
+                for s, e in merge_sessions(sorted(tss), gap)
+                if (e - s).total_seconds() / 60 >= min_minutes
+            ]
+            for day, tss in by_day.items()
         }
+        # Drop days left empty after filtering short blocks
+        results[name] = {day: w for day, w in results[name].items() if w}
     return results
 
 
-def compute(config_path: str, from_date: date, to_date: date, gap: int = None) -> dict:
+def compute(
+    config_path: str, from_date: date, to_date: date, gap: int = None, min_minutes: int = None
+) -> dict:
     results = {}
-    for name, days in project_sessions(config_path, from_date, to_date, gap).items():
+    for name, days in project_sessions(
+        config_path, from_date, to_date, gap, min_minutes
+    ).items():
         project_hours = {}
         for day, sessions in days.items():
             minutes = sum(max((e - s).total_seconds() / 60, 1) for s, e in sessions)
@@ -128,6 +145,13 @@ def main():
         default=None,
         help="Session-break threshold in minutes (overrides config; default 20)",
     )
+    parser.add_argument(
+        "--min-session",
+        dest="min_session",
+        type=int,
+        default=None,
+        help="Drop blocks shorter than N minutes (overrides config; default 5)",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.config):
@@ -141,7 +165,7 @@ def main():
     )
 
     if args.output == "sessions":
-        sessions = project_sessions(args.config, from_date, to_date, args.gap)
+        sessions = project_sessions(args.config, from_date, to_date, args.gap, args.min_session)
         tzname = datetime.now().astimezone().strftime("%Z")
         printed = False
         for proj in sorted(sessions):
@@ -166,7 +190,7 @@ def main():
             print()
         return
 
-    results = compute(args.config, from_date, to_date, args.gap)
+    results = compute(args.config, from_date, to_date, args.gap, args.min_session)
 
     if args.output == "json":
         print(json.dumps(results, indent=2))

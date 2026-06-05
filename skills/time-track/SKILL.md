@@ -19,6 +19,7 @@ Calculate active Claude Code session hours per project per day from `~/.claude/p
 **Key rules applied:**
 - 6am→6am day boundary (pre-6am messages count as previous day)
 - Gaps beyond the session-break threshold (default 20min; set `session_gap_minutes` in config or pass `--gap N`) = session break
+- Blocks shorter than the min-session threshold (default 5min; set `min_session_minutes` in config or pass `--min-session N`) are dropped as noise
 - Parallel agents in the same project are unioned (no double-counting)
 - Parallel sessions across different projects both get credited
 
