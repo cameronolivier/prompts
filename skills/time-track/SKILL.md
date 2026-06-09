@@ -7,6 +7,7 @@ allowed-tools:
   - Bash(python3:*)
   - Bash(ls:*)
   - Bash(date:*)
+  - Agent
 model: haiku
 ---
 
@@ -106,6 +107,38 @@ which (e.g. `times in SAST`). Durations are timezone-independent.
 
 Display the output directly. Append a one-line note:
 > Hours = active Claude Code sessions only. Anything done without Claude (docs, calls, browser) won't appear.
+
+> **Venv-enforcing projects:** some repos block bare `python3` via a hook (e.g. Citi Shuttles forces `functions/<fn>/venv/bin/python`). Both scripts are stdlib-only, so substitute that interpreter when the hook fires — output is identical.
+
+## Step 4 — (Optional) Per-session descriptions
+
+When the user wants to know **what was worked on** in each block — not just the hours
+(e.g. "what did those 26 hours actually do?") — enrich the timesheet with a one-line
+description per session. **Timing is unchanged**: this layer only labels the same blocks
+calculate.py already computed.
+
+1. **Extract digests** (deterministic, no model — just pulls the typed prompts + work
+   signals out of each block's transcript):
+```bash
+python3 ~/.claude/skills/time-track/scripts/session_digest.py \
+  --from YYYY-MM-DD --to YYYY-MM-DD [--from-time HH:MM] \
+  --config ~/.claude/time-track-config.json > /tmp/time-track-digest.json
+```
+Each block carries: `id`, `project`, `day`, `start`, `end`, `dur_h`, the user's `prompts`,
+`tools` (name→count), `files` edited, and `commands` (bash descriptions). Same segmentation
+as calculate.py, so block `start`/`end`/`day` line up exactly with the sessions output.
+`--from-time HH:MM` trims the first day to a start time (matches the timesheet's cutoff).
+
+2. **Summarize with ONE subagent** — do *not* loop per block. Dispatch a single `Agent`
+   (`model: haiku`) and pass it the JSON, instructing it to return, for **each** block `id`,
+   a one-line plain-language description (≤120 chars) of what was worked on, as JSON
+   `{ "b1": "...", "b2": "...", ... }`. Tell it to read intent from `prompts` and what was
+   actually done from `commands`/`files`, to stay concrete (name the feature/area, not
+   "worked on code"), and to avoid jargon per the user's communication preference.
+
+3. **Merge** the returned descriptions into the sessions table as a **Description** column
+   (key by block `id`, or by `day`+`start`), or into the HTML timesheet. Blocks the subagent
+   can't characterise get an empty description rather than a guess.
 
 ## Troubleshooting
 
