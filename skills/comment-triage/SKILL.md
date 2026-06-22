@@ -1,20 +1,20 @@
 ---
-name: prune-comments
-description: Triage comments in source code — remove noise, keep genuine why-comments, and flag what/how comments as refactor candidates because clearer code beats an explanatory comment. Use when the user says "clean up comments", "remove unnecessary comments", "prune comments", "tidy up the comments", "strip redundant comments", or "review the comments". Defaults to the current branch's work (changed + new files vs the base branch); accepts a different containment — staged only, working tree, whole repo, a PR number, or explicit paths/globs.
+name: comment-triage
+description: Triage comments in source code — remove noise, keep genuine why-comments, and flag what/how comments as refactor candidates because clearer code beats an explanatory comment. Use when the user says "clean up comments", "remove unnecessary comments", "triage comments", "prune comments", "tidy up the comments", "strip redundant comments", or "review the comments". Defaults to the current branch's work (changed + new files vs the base branch); accepts a different containment — staged only, working tree, whole repo, a PR number, or explicit paths/globs.
 allowed-tools:
   - Read
   - Edit
   - Grep
   - Glob
   - AskUserQuestion
-  - Bash(bash:*/prune-comments/scripts/scope.sh:*)
-  - Bash(BASE_BRANCH=*:*/prune-comments/scripts/scope.sh:*)
+  - Bash(bash:*/comment-triage/scripts/scope.sh:*)
+  - Bash(BASE_BRANCH=*:*/comment-triage/scripts/scope.sh:*)
   - Bash(git diff:*)
   - Bash(git status:*)
 model: sonnet
 ---
 
-# prune-comments
+# comment-triage
 
 > **Model: Sonnet** — judging *why vs. what* and proposing a refactor is contextual reasoning, not a regex.
 

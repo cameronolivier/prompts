@@ -1,6 +1,6 @@
 ---
 name: mo-reap-sync
-description: Sync Claude Code session hours to mo-reap time tracking. Use when the user asks to "sync time to mo-reap", "update mo-reap", "log my hours to mo-reap", "reconcile time entries", or "fill in my timesheet". Computes coding hours via time-track, fetches existing mo-reap entries, shows a diff, and POSTs the delta on confirmation. Never deletes or overwrites — only adds missing time. Requires time-track skill installed and ~/.claude/time-track-config.json with mo-reap adapter config.
+description: Sync Claude Code session hours to mo-reap time tracking. Use when the user asks to "sync time to mo-reap", "update mo-reap", "log my hours to mo-reap", "reconcile time entries", or "fill in my timesheet". Computes coding hours via time-track, fetches existing mo-reap entries, shows a diff, and POSTs the delta on confirmation. Never deletes or overwrites — only adds missing time. Requires time-track skill installed and ~/.claude/time-track-config.json with mo-reap adapter config. Supports --auto flag for unattended daily sync via launchd.
 allowed-tools:
   - Read
   - Bash(python3:*)
@@ -126,8 +126,32 @@ curl -sS "https://mo-reap.mohara.co/api/ai/query/time-entries?from=FROM&to=TO&li
 
 Show a brief summary: "✅ All projects reconciled" or flag any remaining gaps.
 
+## Automated daily sync (unattended)
+
+`plan.py` supports `--auto` to skip confirmation and POST all `add` entries immediately with compact log output. Used by `auto-sync.sh` which wraps it with a 24h gate (won't run more than once per calendar day regardless of how often it's called).
+
+Setup for daily launchd automation:
+```bash
+# Script is at ~/.claude/skills/mo-reap-sync/scripts/auto-sync.sh
+# Plist is at ~/Library/LaunchAgents/co.mohara.mo-reap-sync.plist
+# Fires at 09:00, 13:00, 17:00, 21:00 — only one actually syncs per day (24h gate)
+# Missed runs (laptop asleep) are caught on next wake
+# Log: ~/.claude/.mo-reap-sync.log
+# Last sync timestamp: ~/.claude/.mo-reap-last-sync
+
+# To reload after changes:
+launchctl unload ~/Library/LaunchAgents/co.mohara.mo-reap-sync.plist
+launchctl load   ~/Library/LaunchAgents/co.mohara.mo-reap-sync.plist
+
+# To trigger a manual run now (ignores 24h gate):
+python3 ~/.claude/skills/mo-reap-sync/scripts/plan.py \
+  --from $(date -v-$(( $(date +%u) - 1 ))d +%Y-%m-%d) \
+  --to $(date +%Y-%m-%d) \
+  --auto
+```
+
 ## Caveats
 
 - **No delete/update endpoint exists** — over-logged entries must be fixed manually in the mo-reap UI.
 - Claude Code hours = active AI-assisted work only. Anything done without Claude won't appear.
-- Projects without a `adapters.mo-reap.project_code` in config are silently skipped.
+- Unmatched config projects print `WARNING: no mo-reap project matches …` to stderr/log — fix by adding `adapters.mo-reap.project_code` to config.
