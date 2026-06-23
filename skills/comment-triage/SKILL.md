@@ -28,6 +28,8 @@ This is not a keep-everything skill. Genuine why is protected — but "it explai
 
 **Audience: a fluent practitioner.** Judge every comment as if the reader is a competent engineer fluent in the language, its standard library, and the frameworks in use. Never explain semantics they already know — that `bool` is an `int` subclass, what a list comprehension builds, that `await` suspends, that a validate call raises on bad input. If the only thing a comment adds is a language/stdlib fact, REMOVE it. Comments are for what's surprising *about this code*, not for teaching the language.
 
+**Docstrings are comments — no exemption.** A module/function/class docstring faces the exact same bar as a `#` comment. Narration ("Run forever, reconnecting", "Validate a raw dict") is cut, not relocated. **Moving a `#` comment's prose into a `"""..."""` is not a cut** — it's the same content in a different delimiter. A docstring survives only if it documents a contract the signature can't (units, ranges, nullability, throwing behavior, a cross-system invariant) *and* clears the bug-bar, and then it's tightened to one or two lines. On internal APIs, prefer types over docstrings entirely (Zod/tRPC/dataclass fields carry more than prose) — leave only the irreducible why.
+
 ## The three buckets
 
 Classify every comment in scope into exactly one:
