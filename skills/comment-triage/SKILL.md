@@ -65,7 +65,7 @@ Classify every comment in scope into exactly one:
 - The why is real but exists because a name/value is opaque → **REFACTOR** the name.
 - The why is real and irreducible, but it's 2×+ the length of the code and the extra words narrate mechanism → **TIGHTEN** in place.
 
-Never delete a true, non-obvious why. But "I'm not sure" is not a reason to keep prose — keep the *fact*, cut the *words*. Default to the smallest faithful comment, not the longest safe one.
+**The bug-bar (the keep threshold).** A comment survives only if you can name the *specific bug* a competent reader would introduce by removing it — a trap they'd hit "simplifying" the code (reintroduce a float() overflow, drop a guard that prevents a TypeError leak, break a cross-system contract). "Nice context", "might help someone", "explains the intent" — all cut. **When genuinely on the fence between keep and cut, cut.** Keep the *fact* only when its absence is a trap, and even then cut the *words* to the minimum. Default to the smallest faithful comment, not the longest safe one — and bias the borderline call toward fewer comments, not more.
 
 ## Workflow
 
