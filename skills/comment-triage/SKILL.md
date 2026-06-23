@@ -11,12 +11,12 @@ allowed-tools:
   - Bash(BASE_BRANCH=*:*/comment-triage/scripts/scope.sh:*)
   - Bash(git diff:*)
   - Bash(git status:*)
-model: sonnet
+model: opus
 ---
 
 # comment-triage
 
-> **Model: Sonnet** — judging *why vs. what* and proposing a refactor is contextual reasoning, not a regex.
+> **Model: Opus** — deciding "would a fluent engineer actually need this?" is deep taste held across a whole file, not a regex. Sonnet systematically under-cuts here (it keeps plausible-sounding why-prose); Opus judges borderline calls decisively.
 
 Triages comments with a **clarity-first** stance. The goal is not fewer comments — it's that every surviving comment earns its place by carrying a *true, non-obvious why in the fewest words that carry it*. Code that needs a comment to explain *what* it does gets fixed instead of annotated; a *why* that's bloated, self-evident, or compensating for a weak name gets tightened or designed away.
 
@@ -25,6 +25,8 @@ Triages comments with a **clarity-first** stance. The goal is not fewer comments
 > 2. **Why-comments have a ceiling.** A *why* earns its place only when it is (a) true, (b) genuinely non-obvious from the code, names, types, and nearby tests, and (c) stated in the fewest words that carry the surprise. A correct-but-bloated why is a defect: tighten it to the irreducible fact. A why that just restates a name or structure ("X is the single source of truth", "Y derives from X") is noise: remove it. A why that exists only because a name is cryptic or a value is magic is a refactor: fix the name.
 
 This is not a keep-everything skill. Genuine why is protected — but "it explains why" is not a free pass. Most over-commenting hides in plausible-sounding why-prose, not in `// increment i`.
+
+**Audience: a fluent practitioner.** Judge every comment as if the reader is a competent engineer fluent in the language, its standard library, and the frameworks in use. Never explain semantics they already know — that `bool` is an `int` subclass, what a list comprehension builds, that `await` suspends, that a validate call raises on bad input. If the only thing a comment adds is a language/stdlib fact, REMOVE it. Comments are for what's surprising *about this code*, not for teaching the language.
 
 ## The three buckets
 
@@ -36,6 +38,8 @@ Classify every comment in scope into exactly one:
    - AI/scaffold filler: `// Here's the function`, `// Step 1:` narration, `// TODO: implement` over finished code, banner comments restating an obvious section.
    - Stale attribution / changelog noise: `// added by X`, `// modified for ticket` — git records this.
    - Tautological *why*: restates what the names, types, or structure already make plain — `# X is the single source of truth`, `# Y derives from X so they can't drift`, or `except InvalidURI: # a malformed URL can never succeed` (the exception's own name says it). Run the cover test (below): if nothing is lost that a reader couldn't recover from the symbols, it's noise.
+   - Restates a descriptive test name: a comment under `test_blank_adapter_id_rejected_at_construction` saying "must fail at construction" is noise. A test's name + assertion *is* its documentation; a comment there earns its place only by adding a why the reader gets from *neither* (e.g. why a magic literal like `10**400` was chosen). Default test comments to REMOVE.
+   - Repeated rationale: the same fact explained at multiple sites. State a genuinely non-obvious one *once* at its source of truth; elsewhere use a short pointer or nothing. (Language-semantics "gotchas" — `bool`/`int`, etc. — are REMOVE *everywhere* per the audience rule, not "keep once".)
 
 2. **KEEP & TIGHTEN** — a *why* clean code genuinely can't express. Keep the *fact*, cut it to the irreducible surprise: a multi-line paragraph guarding two lines of code, or prose re-explaining the mechanism step by step, gets rewritten down to the one clause a reader couldn't infer. Legitimate categories:
    - Rationale, trade-offs, why a non-obvious approach was chosen.
