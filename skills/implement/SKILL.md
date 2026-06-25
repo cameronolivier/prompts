@@ -201,6 +201,11 @@ If yes, write an ADR in `docs/decisions/` (or the project's ADR directory) match
 
 ## 9. Verify
 
+Verification runs **inside this lane's worktree**. That isolation is deliberate: each
+lane has its own checkout, install state, and build artifacts, so parallel lanes can run
+typecheck/tests concurrently without colliding on shared state. Keep verification
+worktree-local — never centralize it in the orchestrator.
+
 Run the full verification suite using the commands from step 1's `detect-project.sh` output:
 
 ```bash
