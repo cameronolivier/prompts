@@ -278,6 +278,24 @@ For tmux, remind the user: `Ctrl+B, q` shows pane numbers; `Ctrl+B, o` cycles.
 
 ## Phase 7: Final report
 
+This report is the **consolidated review surface**. PRs are opened as *drafts* by each
+lane (`/implement` step 11), so this is where you review every lane's diff and test
+status side by side before taking any PR out of draft. Nothing here merges automatically.
+
+Gather the per-lane diff and status before writing the report:
+
+```bash
+# Per lane — local diff scope (cheap, no network):
+git diff --stat main...<branch>
+# Remote check status for the draft PR:
+gh pr checks <pr-number>
+```
+
+Local verification (typecheck + tests) ran inside each worktree in `/implement` step 9;
+a lane reaching `agent_complete` means that suite passed locally before the draft PR
+opened. Derive the **Verify** column from the lane's status file: `agent_complete` →
+passed, `failed` → see blocker.
+
 ```
 ## Orchestration Report
 
@@ -288,10 +306,10 @@ For tmux, remind the user: `Ctrl+B, q` shows pane numbers; `Ctrl+B, o` cycles.
 - Failed/Blocked: N
 - Remaining waves: N
 
-### PRs Created
-| Issue | Title | PR    | CI              |
-|-------|-------|-------|-----------------|
-| #N    | Title | PR #M | passing/failing |
+### Per-lane review
+| Issue | Title | Diff (files / ±lines) | Verify (local) | PR    | CI              |
+|-------|-------|-----------------------|----------------|-------|-----------------|
+| #N    | Title | 4 files / +210 −18    | passed         | PR #M | passing/failing |
 
 ### Blocked Issues
 | Issue | Title | Blocker     |
@@ -303,13 +321,7 @@ For tmux, remind the user: `Ctrl+B, q` shows pane numbers; `Ctrl+B, o` cycles.
 - <shared dependency issues>
 
 ### Next Steps
-- <merge order if PRs have dependencies>
+- <which draft PRs to take out of draft, and in what order if dependent>
 - <manual fixes for blocked issues>
 - <remaining waves to dispatch>
-```
-
-CI status:
-
-```bash
-gh pr checks <pr-number>
 ```
