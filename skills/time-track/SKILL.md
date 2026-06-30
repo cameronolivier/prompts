@@ -140,7 +140,42 @@ as calculate.py, so block `start`/`end`/`day` line up exactly with the sessions 
    (key by block `id`, or by `day`+`start`), or into the HTML timesheet. Blocks the subagent
    can't characterise get an empty description rather than a guess.
 
+## Step 5 — (Optional) Build the standard HTML timesheet
+
+When the user wants a **client-facing timesheet** (not just hours), build it with the canonical
+renderer so every sheet is identical in look + copy behaviour:
+
+```bash
+python3 ~/.claude/skills/time-track/scripts/render_timesheet.py spec.json out.html
+```
+
+The renderer is **stdlib-only** and produces the Spark Cartel standard format: summary cards,
+per-section **invoice-bullets + email-paragraph** cards (each with one-click copy), per-stream /
+per-category session tables with **"Copy for Sheets"** (TSV) exports, and an **Excluded** (not-billed)
+section. It owns look, totals and copy mechanics; **the model owns categorisation + plain-language prose.**
+
+Key invariants (don't reinvent):
+- **All hours are derived** by summing the rows you pass — never hand it a total.
+- **Copy text omits hours** (kept only in on-screen pills), so a pasted invoice/email line never
+  drags a time figure in.
+- Section hours come from `summaries[].group_ids` → the renderer sums those groups. It warns on
+  stderr if any billable group isn't covered by a summary.
+
+How to build the `spec.json` (full schema is documented at the top of `render_timesheet.py`):
+1. Get rows from `calculate.py --output sessions` (timing) + Step 4 (descriptions).
+2. **Categorise** each row into per-customer **streams** and **category groups** (the category map is
+   customer-specific — keep it in that customer's billing repo, e.g. `GENERATING.md`). Mark
+   timesheet-generation / dev-environment rows as `excluded` (not billed).
+3. Write one `summaries[]` entry per work area (title + invoice `bullets` + email `para`), referencing
+   the `group_ids` it bills.
+4. Render, then **verify** the derived billable total against your row sum.
+
+> The category map, stream definitions and naming gotchas are **per customer**, not part of this skill.
+> See the customer's billing repo (for Citi Shuttles: `billing/citi-shuttles/GENERATING.md`).
+
 ## Troubleshooting
 
 - **"No activity found"** → patterns may not match. Re-run `ls ~/.claude/projects/` and help user update config.
 - **"Config not found"** → re-run config setup above.
+- **`render_timesheet.py` warns "groups not covered by any summary"** → a billable category group has no
+  matching `summaries[].group_ids` entry; add the missing summary section (or remove the empty group).
