@@ -27,7 +27,7 @@ Read `./reference/template.md` and `./reference/values.md` before drafting.
 
 **Badge names:** short, punchy, in-joke or project-flavored where possible (referencing the project name, a running joke, or the specific thing they did) — e.g. a project-themed pun, "___ Believers", "Freaking Amazing", "Quietly Diligent", "GOAT", "Ready to Rumble", a title-case honorific. Title Case, usually 2-6 words. Occasionally an emoji inline after the name. Always bold in the final output.
 
-**Notes / description:** second person, warm and direct, casual register — not corporate. 1-4 paragraphs. Emojis used naturally, not decoratively spammed. Fine to open with something like "2 things:" or a direct address. A short sign-off is common but optional ("Thank you so so much! ❤️", "Keep it up bro!"). If the situation genuinely calls for it, an optional **Honourable mentions** line can follow the main notes, naming secondary contributors and why — only add this when the input calls for it, don't force it.
+**Notes / description:** always addressed directly *to* the recipient — "you", never "he/she/they [did X]" or the recipient's name as subject. This is a message to them, not a bio about them. Warm and direct, casual register — not corporate. 1-4 paragraphs. Emojis used naturally, not decoratively spammed. Fine to open with something like "2 things:" or a direct address. A short sign-off is common but optional ("Thank you so so much! ❤️", "Keep it up bro!"). If the situation genuinely calls for it, an optional **Honourable mentions** line can follow the main notes, naming secondary contributors and why — only add this when the input calls for it, don't force it.
 
 **Value codes:** comma-separated short codes (`MO_PRO, MO_GRO`), not full names.
 
