@@ -19,5 +19,5 @@ Field notes:
 - **Badge name is always bold** (`*...*` in Slack mrkdwn).
 - **`from @Cam`** — always the sender, since this is a personal skill.
 - **Value codes** — comma-separated (e.g. `MO_PRO, MO_GRO`), short codes not full names. See `values.md`.
-- **`Notes`** — the description. Multi-paragraph is fine, casual tone, emojis welcome. See SKILL.md style rules.
+- **`Notes`** — the description, written directly to the recipient (second person: "you", not "James"). Multi-paragraph is fine, casual tone, emojis welcome. See SKILL.md style rules.
 - **Honourable mentions** — an optional extra sub-section (not in the core template) naming people who contributed but aren't primary recipients. Only include it if the input actually calls for it — don't force it.
