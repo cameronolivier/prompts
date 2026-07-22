@@ -27,19 +27,19 @@ EOF
 
 # --- JSON helper ---
 
-# Extract a field from cmux --json output
-# Handles {"result":{"field":"val"}} and {"field":"val"}
+# Extract a field from cmux --json output (flat {"field":"val"} shape)
 json_get() {
   local field="$1"
   python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-r = d.get('result', d)
-print(r.get('$field', d.get('$field', '')))
+print(d.get('$field', ''))
 "
 }
 
 # --- cmux helpers ---
+# cmux 0.64.20+ refs (e.g. surface:19, workspace:8) are globally resolvable —
+# send/send-key/close-surface only need --surface, no --workspace tracking required.
 
 cmux_grid() {
   local count="$1"
@@ -56,36 +56,24 @@ cmux_grid() {
        rows=$(python3 -c "import math; print(math.ceil($count / $cols))") ;;
   esac
 
-  # Create a new workspace for the agent grid
-  cmux new-workspace >/dev/null 2>&1
-
-  # Get the initial surface in the new workspace
-  local first_surface
-  first_surface=$(cmux --json list-surfaces | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-r = d.get('result', d)
-surfs = r if isinstance(r, list) else r.get('surfaces', [r])
-for s in surfs:
-    sid = s.get('surface_id', s.get('id', ''))
-    if sid:
-        print(sid)
-        break
-")
+  # Create a new workspace for the agent grid; --json returns workspace_ref
+  # and the surface_ref of its initial pane directly.
+  local ws_json workspace first_surface
+  ws_json=$(CMUX_QUIET=1 cmux --json workspace create --name "work-grid")
+  workspace=$(echo "$ws_json" | json_get workspace_ref)
+  first_surface=$(echo "$ws_json" | json_get surface_ref)
 
   if [ "$count" -le 1 ]; then
     echo "$first_surface"
     return
   fi
 
-  # col_heads[i] = surface ID of the top cell in column i
+  # col_heads[i] = surface ref of the top cell in column i.
+  # new-split takes --surface directly, so no focus step is needed.
   local col_heads=("$first_surface")
-
-  # Create columns: split right from the first surface (cols-1) times
-  cmux focus-surface --surface "$first_surface"
   for ((c = 1; c < cols; c++)); do
     local new_id
-    new_id=$(cmux --json new-split right | json_get surface_id)
+    new_id=$(CMUX_QUIET=1 cmux --json new-split right --workspace "$workspace" --surface "${col_heads[$((c-1))]}" | json_get surface_ref)
     col_heads+=("$new_id")
   done
 
@@ -93,13 +81,14 @@ for s in surfs:
   local all_surfaces=("${col_heads[@]}")
   local created="$cols"
 
-  # Create rows: for each column, focus it and split down
+  # Create rows: for each column, split down from the previous cell in that column
   for ((c = 0; c < cols && created < count; c++)); do
-    cmux focus-surface --surface "${col_heads[$c]}"
+    local anchor="${col_heads[$c]}"
     for ((r = 1; r < rows && created < count; r++)); do
       local new_id
-      new_id=$(cmux --json new-split down | json_get surface_id)
+      new_id=$(CMUX_QUIET=1 cmux --json new-split down --workspace "$workspace" --surface "$anchor" | json_get surface_ref)
       all_surfaces+=("$new_id")
+      anchor="$new_id"
       created=$((created + 1))
     done
   done
@@ -110,8 +99,8 @@ for s in surfs:
 cmux_launch() {
   local surface="$1" issue="$2" worktree="$3"
 
-  cmux send-surface --surface "$surface" "cd $worktree && claude \"/implement $issue\""
-  cmux send-key-surface --surface "$surface" enter
+  cmux send --surface "$surface" "cd $worktree && claude \"/implement $issue\""
+  cmux send-key --surface "$surface" enter
 
   echo "$surface"
 }
@@ -120,29 +109,34 @@ cmux_close() {
   local surface="$1"
 
   # Send /exit to claude
-  cmux send-surface --surface "$surface" "/exit"
-  cmux send-key-surface --surface "$surface" enter
+  cmux send --surface "$surface" "/exit"
+  cmux send-key --surface "$surface" enter
   sleep 3
 
   # Exit the shell to close the pane
-  cmux send-surface --surface "$surface" "exit"
-  cmux send-key-surface --surface "$surface" enter
+  cmux send --surface "$surface" "exit"
+  cmux send-key --surface "$surface" enter
 }
 
 cmux_status() {
   local surface="$1"
-  # Check if the surface still exists
-  cmux --json list-surfaces | python3 -c "
+  CMUX_QUIET=1 cmux --json tree --all 2>/dev/null | python3 -c "
 import sys, json
-d = json.load(sys.stdin)
-r = d.get('result', d)
-surfs = r if isinstance(r, list) else r.get('surfaces', [])
-found = any(
-    s.get('surface_id', s.get('id', '')) == '$surface'
-    for s in surfs
-)
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print('closed')
+    sys.exit()
+target = '$surface'
+found = False
+for w in d.get('windows', []):
+    for ws in w.get('workspaces', []):
+        for p in ws.get('panes', []):
+            for s in p.get('surfaces', []):
+                if s.get('ref') == target:
+                    found = True
 print('exists' if found else 'closed')
-" 2>/dev/null || echo "closed"
+" || echo "closed"
 }
 
 # --- tmux helpers ---

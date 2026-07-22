@@ -46,12 +46,14 @@ cmux ping
 | `cmux select-workspace --workspace <id>` | Switch workspace |
 | `cmux current-workspace` | Get active workspace |
 | `cmux close-workspace --workspace <id>` | Close workspace |
-| `cmux new-split {left\|right\|up\|down}` | Create split pane |
-| `cmux list-surfaces` | List surfaces in workspace |
-| `cmux focus-surface --surface <id>` | Focus a surface |
-| `cmux send "command"` | Send text to focused terminal |
-| `cmux send-key enter` | Send key press (enter/tab/escape/backspace/up/down/left/right) |
-| `cmux send-surface --surface <id> "cmd"` | Send text to specific surface |
+| `cmux new-split {left\|right\|up\|down} [--surface <id>]` | Create split pane; `--surface` splits off that surface without needing to focus it first |
+| `cmux list-panes [--workspace <id>]` | List panes (and their surfaces) in a workspace |
+| `cmux list-pane-surfaces --pane <id>` | List surfaces within a specific pane |
+| `cmux tree --all` | Full window/workspace/pane/surface tree — use to find a surface without knowing its workspace |
+| `cmux focus-pane --pane <id>` | Focus a pane (there is no `focus-surface`; most commands accept `--surface` directly instead) |
+| `cmux send --surface <id> "cmd"` | Send text to a surface (targets the focused surface if `--surface` omitted) |
+| `cmux send-key --surface <id> enter` | Send key press to a surface (enter/tab/escape/backspace/up/down/left/right) |
+| `cmux close-surface --surface <id>` | Close a surface |
 | `cmux identify` | Show current window/workspace/surface context |
 
 ## Notifications
