@@ -22,10 +22,14 @@ with a grid layout (2×2, 2×3, 2×4 depending on wave size).
 1. Create a grid workspace:
 
    ```bash
-   SURFACES=$(DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" grid <wave-size>)
+   OUT=$(DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" grid <wave-size>)
+   GRID_WS=$(echo "$OUT" | grep '^workspace=' | cut -d= -f2)
+   SURFACES=$(echo "$OUT" | grep -E '^surface:[0-9]+$')
    ```
 
-   Returns one surface ID per line. Grid dimensions are auto-calculated:
+   The **first** line is `workspace=<ref>` — the grid's own workspace. Record it
+   in the wave's state; teardown needs it to close the grid. Every subsequent
+   line is one surface ref. Grid dimensions are auto-calculated:
 
    | Wave size | Grid |
    | --------- | ---- |
@@ -51,9 +55,14 @@ interact.
 
 ### cmux teardown
 
+Close each lane's surface, then the grid workspace itself:
+
 ```bash
 DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" close <surface>
+DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" close-workspace <grid-workspace-ref>
 ```
+
+Skipping the second call leaves an empty workspace behind in cmux.
 
 ## tmux dispatch
 

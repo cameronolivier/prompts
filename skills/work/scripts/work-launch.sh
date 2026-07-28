@@ -7,6 +7,13 @@ set -euo pipefail
 
 DISPATCH="${DISPATCH:-}"
 
+# cmux prints deprecation notices to STDOUT for legacy command aliases, which
+# corrupts parsed output. Export once rather than per call site.
+export CMUX_QUIET=1
+
+# Max seconds to wait for a fresh shell to accept input (see cmux_wait_shell).
+SHELL_READY_TIMEOUT="${SHELL_READY_TIMEOUT:-30}"
+
 usage() {
   cat <<EOF
 Usage: work-launch.sh <command> [options]
@@ -16,11 +23,17 @@ Commands:
   launch         Boot claude with /implement as initial prompt in a surface
   bootstrap      Create a tmux session and boot claude with /work as initial prompt
   close          Close a pane (exit claude, remove split)
+  close-workspace <ws>  Close a whole cmux grid workspace (cmux only)
   status         Check if a surface still exists
+
+Note: for DISPATCH=cmux, `grid` prints a leading "workspace=<ref>" line before
+the surface refs. Record it so the grid workspace can be closed on teardown.
 
 Environment:
   DISPATCH       Required. "cmux" or "tmux"
   TMUX_SESSION   tmux session name (default: "work")
+  GRID_NAME      Title for the created cmux workspace (default: "work-grid")
+  SHELL_READY_TIMEOUT  Max seconds to wait for a fresh shell (default: 30)
 EOF
   exit 1
 }
@@ -37,12 +50,36 @@ print(d.get('$field', ''))
 "
 }
 
+# Poll a surface until its shell accepts input.
+#
+# A freshly spawned shell can drop the leading characters of anything sent too
+# early (observed via `workspace create --command "echo X"` arriving as
+# "cho X"), so sending immediately is a race. Send a sentinel repeatedly until
+# its OUTPUT appears; the quoting splits the token so the echoed command line
+# itself cannot match. Costs ~1s and is self-correcting.
+cmux_wait_shell() {
+  local surface="$1" i
+  for ((i = 0; i < SHELL_READY_TIMEOUT; i++)); do
+    cmux send --surface "$surface" 'echo work_r"e"ady_ok' >/dev/null 2>&1 || true
+    cmux send-key --surface "$surface" enter >/dev/null 2>&1 || true
+    sleep 1
+    if cmux read-screen --surface "$surface" --lines 40 2>/dev/null \
+         | grep -qE '^work_ready_ok'; then
+      return 0
+    fi
+  done
+  echo "surface $surface never became ready after ${SHELL_READY_TIMEOUT}s" >&2
+  return 1
+}
+
 # --- cmux helpers ---
 # cmux 0.64.20+ refs (e.g. surface:19, workspace:8) are globally resolvable —
 # send/send-key/close-surface only need --surface, no --workspace tracking required.
 
 cmux_grid() {
   local count="$1"
+
+  [[ "$count" =~ ^[1-9][0-9]*$ ]] || { echo "count must be a positive integer" >&2; return 1; }
 
   # Grid dimensions — prefer 2 columns for terminal readability
   local cols rows
@@ -59,9 +96,16 @@ cmux_grid() {
   # Create a new workspace for the agent grid; --json returns workspace_ref
   # and the surface_ref of its initial pane directly.
   local ws_json workspace first_surface
-  ws_json=$(CMUX_QUIET=1 cmux --json workspace create --name "work-grid")
+  ws_json=$(cmux --json workspace create --name "${GRID_NAME:-work-grid}" --focus false 2>/dev/null)
   workspace=$(echo "$ws_json" | json_get workspace_ref)
   first_surface=$(echo "$ws_json" | json_get surface_ref)
+  [ -z "$workspace" ] && { echo "failed to create cmux workspace" >&2; return 1; }
+  [ -z "$first_surface" ] && { echo "could not resolve initial surface" >&2; return 1; }
+
+  # Emit the workspace ref first, prefixed so it is distinguishable from the
+  # surface lines. Without this the grid workspace can never be closed and every
+  # wave orphans one in cmux.
+  echo "workspace=$workspace"
 
   if [ "$count" -le 1 ]; then
     echo "$first_surface"
@@ -73,7 +117,8 @@ cmux_grid() {
   local col_heads=("$first_surface")
   for ((c = 1; c < cols; c++)); do
     local new_id
-    new_id=$(CMUX_QUIET=1 cmux --json new-split right --workspace "$workspace" --surface "${col_heads[$((c-1))]}" | json_get surface_ref)
+    new_id=$(cmux --json new-split right --workspace "$workspace" --surface "${col_heads[$((c-1))]}" --focus false 2>/dev/null | json_get surface_ref)
+    [ -z "$new_id" ] && { echo "column split $c failed" >&2; return 1; }
     col_heads+=("$new_id")
   done
 
@@ -86,7 +131,8 @@ cmux_grid() {
     local anchor="${col_heads[$c]}"
     for ((r = 1; r < rows && created < count; r++)); do
       local new_id
-      new_id=$(CMUX_QUIET=1 cmux --json new-split down --workspace "$workspace" --surface "$anchor" | json_get surface_ref)
+      new_id=$(cmux --json new-split down --workspace "$workspace" --surface "$anchor" --focus false 2>/dev/null | json_get surface_ref)
+      [ -z "$new_id" ] && { echo "row split failed in column $c" >&2; return 1; }
       all_surfaces+=("$new_id")
       anchor="$new_id"
       created=$((created + 1))
@@ -98,9 +144,19 @@ cmux_grid() {
 
 cmux_launch() {
   local surface="$1" issue="$2" worktree="$3"
+  local quoted_worktree
+  printf -v quoted_worktree '%q' "$worktree"
 
-  cmux send --surface "$surface" "cd $worktree && claude \"/implement $issue\""
-  cmux send-key --surface "$surface" enter
+  # Wait for the shell before typing — a fresh surface may still be starting up.
+  cmux_wait_shell "$surface" || return 1
+
+  # %q the worktree: an unquoted path containing spaces splits into extra args
+  # and `cd` fails, leaving claude booted in the wrong directory.
+  # Redirect: cmux echoes "OK <surface> <workspace>" per call, which would
+  # pollute stdout — callers parse this function's output as the surface ref.
+  cmux send --surface "$surface" \
+    "cd $quoted_worktree && claude $(printf '%q' "/implement $issue")" >/dev/null
+  cmux send-key --surface "$surface" enter >/dev/null
 
   echo "$surface"
 }
@@ -108,14 +164,15 @@ cmux_launch() {
 cmux_close() {
   local surface="$1"
 
-  # Send /exit to claude
-  cmux send --surface "$surface" "/exit"
-  cmux send-key --surface "$surface" enter
+  # Escape first in case claude is mid-prompt, then exit claude.
+  cmux send-key --surface "$surface" escape >/dev/null 2>&1 || true
+  cmux send --surface "$surface" "/exit" >/dev/null 2>&1 || true
+  cmux send-key --surface "$surface" enter >/dev/null 2>&1 || true
   sleep 3
 
-  # Exit the shell to close the pane
-  cmux send --surface "$surface" "exit"
-  cmux send-key --surface "$surface" enter
+  # Close the surface outright — more reliable than sending "exit" and hoping
+  # the shell is back at a prompt.
+  cmux close-surface --surface "$surface" >/dev/null 2>&1 || true
 }
 
 cmux_status() {
@@ -185,7 +242,8 @@ tmux_close() {
 
 tmux_status() {
   local pane_id="$1"
-  if tmux list-panes -a -F '#{pane_id}' 2>/dev/null | grep -qF "$pane_id"; then
+  # -x: without a whole-line match, pane %1 also matches %11.
+  if tmux list-panes -a -F '#{pane_id}' 2>/dev/null | grep -qFx "$pane_id"; then
     echo "exists"
   else
     echo "closed"
@@ -262,6 +320,14 @@ case "$cmd" in
       tmux) tmux_close "$surface" ;;
       *) echo "Unsupported DISPATCH: $DISPATCH" >&2; exit 1 ;;
     esac
+    ;;
+
+  close-workspace)
+    ws="${1:-}"
+    [[ -z "$ws" ]] && { echo "Required: workspace ref" >&2; exit 1; }
+    [[ "$DISPATCH" != "cmux" ]] && { echo "close-workspace is cmux-only" >&2; exit 1; }
+    cmux close-workspace --workspace "$ws" >/dev/null 2>&1 || true
+    echo "closed $ws"
     ;;
 
   status)

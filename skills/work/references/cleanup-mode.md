@@ -16,6 +16,13 @@ branches, delete status files.
 DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" close <surface>
 ```
 
+Once every lane in a grid workspace is closed, close the workspace too — the
+`workspace=<ref>` line `grid` printed at dispatch:
+
+```bash
+DISPATCH=cmux "$SCRIPT_DIR/work-launch.sh" close-workspace <grid-workspace-ref>
+```
+
 ### tmux teardown
 
 ```bash
@@ -32,8 +39,13 @@ No terminal session to close.
 
    ```bash
    git worktree remove .claude/worktrees/<issue>-<slug>
-   git branch -D <issue>-<slug>
+   git branch -d <issue>-<slug>
    ```
+
+   Use `-d`, not `-D`. Cleanup usually runs at `agent_complete`, where the PR is
+   open but **not merged** — `-D` would force-delete unmerged work. `-d` refuses,
+   and that refusal is the signal to check. Only escalate after confirming the
+   branch is pushed (`git rev-parse --verify origin/<branch>`) or the user says so.
 
    If the worktree has uncommitted changes, prompt the user before adding
    `--force`.
