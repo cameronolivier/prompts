@@ -63,6 +63,18 @@ SPEC (JSON)
       "para": "one client-email paragraph ..." }
   ],
 
+  "argument": {                             // OPTIONAL — justification block at the top of the sheet,
+    "title": "Why this came in above the ~4-hour quote",   // e.g. explaining an overrun vs a quote
+    "lead": "one on-screen intro paragraph",
+    "quote_hours": 4,                       // the figure quoted (an input, not derived)
+    "breakdown": [                          // hours DERIVED: sums billable rows whose row.scope matches
+      { "scope": "quoted", "label": "August review", "status": "Quoted work" }
+    ],
+    "points": [ { "h": "heading", "p": "why this part took as long as it did" } ],
+    "bullets": ["short copyable version", "..."],
+    "para": "email version; blank lines split paragraphs"
+  },
+
   "excluded": [                             // not billed; listed for completeness
     { "name": "Timesheet generation", "cat": "Timesheet", "rows": [...] }
   ]
@@ -71,6 +83,11 @@ SPEC (JSON)
 A "row" is: { "date":"2026-06-11", "day":"Thu", "start":"23:36", "end":"00:33",
               "hrs":0.95, "desc":"...", "sess":"f14837c9" }
 `end < start` means the session crossed midnight (handled in the TSV split).
+Rows may carry an optional "scope" key, used only by `argument.breakdown`; the renderer warns if an
+argument breakdown exists and any billable row's scope is not listed in it.
+
+The argument block's copy text DOES include hours — unlike the per-section copy text — because the
+hours are the thing it explains.
 """
 from __future__ import annotations
 import html
@@ -127,6 +144,72 @@ def tsv_block(_id, header, rows):
 def ul(items):
     return "<ul>" + "".join(f"<li>{esc(i)}</li>" for i in items) + "</ul>"
 
+def argument_section(arg, billable_rows):
+    """Justification block. Breakdown hours are derived from rows tagged with a matching `scope`."""
+    rows_by_scope = {}
+    for r in billable_rows:
+        rows_by_scope.setdefault(r.get("scope"), []).append(r)
+    breakdown = arg.get("breakdown", [])
+    listed_scopes = [b["scope"] for b in breakdown]
+    if breakdown:
+        unscoped = [r for r in billable_rows if r.get("scope") not in listed_scopes]
+        if unscoped:
+            sys.stderr.write("WARNING: billable rows missing from argument breakdown: "
+                             + ", ".join(f'{r["date"]} {r["start"]}' for r in unscoped) + "\n")
+        for scope in listed_scopes:
+            if scope not in rows_by_scope:
+                sys.stderr.write(f"WARNING: argument scope {scope!r} matches no billable rows\n")
+
+    billable = total(billable_rows)
+    quote = arg.get("quote_hours")
+    quote_note = f"Quoted about {quote:g}h" if quote is not None else ""
+    table_rows, breakdown_text = [], []
+    for b in breakdown:
+        hrs = total(rows_by_scope.get(b["scope"], []))
+        table_rows.append(f'<tr><td>{esc(b["label"])}</td><td>{esc(b["status"])}</td>'
+                          f'<td class="num">{hrs:.2f}</td></tr>')
+        breakdown_text.append(f'• {b["label"]} — {b["status"]} — {hrs:.2f}h')
+    table_html = ""
+    if table_rows:
+        table_rows.append(f'<tr class="tot"><td>Total billable</td><td>{esc(quote_note)}</td>'
+                          f'<td class="num">{billable:.2f}</td></tr>')
+        breakdown_text.append(f"Total billable — {billable:.2f}h" + (f" ({quote_note.lower()})" if quote_note else ""))
+        table_html = ('<div class="argwrap"><table class="argt"><thead><tr><th>Work</th>'
+                      '<th>Against the quote</th><th>Hours</th></tr></thead>'
+                      f'<tbody>{"".join(table_rows)}</tbody></table></div>')
+
+    points = arg.get("points", [])
+    points_html = "".join(f'<div class="argpt"><h4>{esc(pt["h"])}</h4><p>{esc(pt["p"])}</p></div>'
+                          for pt in points)
+    paragraphs = [chunk.strip() for chunk in arg.get("para", "").split("\n\n") if chunk.strip()]
+
+    full_text = "\n\n".join(filter(None, [
+        arg["title"], arg.get("lead", ""), "\n".join(breakdown_text),
+        "\n\n".join(f'{pt["h"]}\n{pt["p"]}' for pt in points),
+    ]))
+    bullets_text = arg["title"] + "\n" + "\n".join("• " + b for b in arg.get("bullets", []))
+    email_text = "\n\n".join(paragraphs)
+
+    short_html = ""
+    if arg.get("bullets") or paragraphs:
+        short_html = f"""<div class="ssum"><div class="two">
+    <div class="half"><div class="hlbl">Short version — bullet points <button class="copy sm" data-t="argInv">Copy</button></div>{ul(arg.get("bullets", []))}</div>
+    <div class="half"><div class="hlbl">Email — paragraphs <button class="copy sm" data-t="argEm">Copy</button></div>{"".join(f"<p>{esc(x)}</p>" for x in paragraphs)}</div>
+   </div></div>"""
+
+    return f"""<section class="arg">
+  <div class="shead"><h2>{esc(arg["title"])}</h2>
+   <div><button class="copy" data-t="argFull">Copy full explanation</button></div></div>
+  {f'<p class="lead">{esc(arg["lead"])}</p>' if arg.get("lead") else ""}
+  {table_html}
+  {f'<div class="argpts">{points_html}</div>' if points_html else ""}
+  {short_html}
+  {ta("argFull", full_text)}
+  {ta("argInv", bullets_text)}
+  {ta("argEm", email_text)}
+  <p class="note">Unlike the per-section copy text below, this explanation deliberately includes hours — they are what it explains.</p>
+ </section>"""
+
 CSS = """ :root{--a:#2563eb;--b:#0f766e;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--bg:#f8fafc}
  *{box-sizing:border-box}
  body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--ink);
@@ -175,7 +258,16 @@ CSS = """ :root{--a:#2563eb;--b:#0f766e;--ink:#0f172a;--mut:#64748b;--line:#e2e8
  .hlbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:600;margin:0 0 8px;display:flex;align-items:center;gap:8px}
  .half ul{margin:0;padding-left:18px} .half li{margin:3px 0}
  .half p{margin:0}
- @media(max-width:640px){.half + .half{border-left:0;border-top:1px solid var(--line)}}"""
+ @media(max-width:640px){.half + .half{border-left:0;border-top:1px solid var(--line)}}
+ section.arg{border-top:3px solid var(--ink)}
+ .arg .lead{margin:0 0 14px;font-size:14.5px;max-width:78ch}
+ .argwrap{overflow-x:auto;margin:0 0 16px}
+ table.argt tr.tot td{border-top:2px solid var(--line);border-bottom:0;font-weight:700}
+ .argpts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:0 0 16px}
+ .argpt{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+ .argpt h4{margin:0 0 6px;font-size:13.5px}
+ .argpt p{margin:0;color:#334155}
+ .arg .half p + p{margin-top:8px}"""
 
 JS = """document.querySelectorAll('button.copy').forEach(function(btn){
   btn.addEventListener('click',function(){
@@ -279,6 +371,8 @@ def render(spec):
     if spec.get("banner"):
         body.append(f'<div class="banner">{spec["banner"]}</div>')
     body.append(f'<div class="cards">{"".join(cards)}</div>')
+    if spec.get("argument"):
+        body.append(argument_section(spec["argument"], billable_rows))
     body.append(f"""<section>
   <div class="shead"><h2>{summ_title}</h2>
    <div><button class="copy" data-t="allInv">Copy all bullets</button>
