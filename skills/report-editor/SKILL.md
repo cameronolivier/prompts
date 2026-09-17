@@ -67,6 +67,13 @@ synonyms is the only licence for using both (rule A4).
 Defaults when nothing is declared: audience leadership, no brief, no invariants, bundled
 scripts only, length target 3,500 words in the body, ISO dates.
 
+Commit messages follow the project's own convention when CLAUDE.md states one. The
+`docs(report):` prefixes below are the fallback. If the project has pre-commit hooks, they run
+on every stage commit and their output is read, not bypassed.
+
+If the project has no `## Report editing` section, propose one as a ruling, with the values
+discovered, so the next run does not repeat the discovery.
+
 Then run, from the skill directory:
 
 ```
