@@ -110,7 +110,7 @@ L9), Google developer documentation style, and the FerroxLabs report-formatting 
 
 ## A. Audience and terms
 
-Three audiences. The default is leadership. The project's CLAUDE.md or the `--audience` flag
+Three audiences. The default is leadership. The project's `.claude/report-editor.json` or the `--audience` flag
 picks one. What changes is a small set of rules, listed here. Everything else applies to all.
 
 | Audience | Reader | Rules that change |

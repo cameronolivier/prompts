@@ -14,11 +14,11 @@ allowed-tools:
   - Glob
   - Write
   - Edit
-  - Bash(python3 *report-editor/scripts/figure_diff.py:*)
-  - Bash(python3 *report-editor/scripts/structure_check.py:*)
-  - Bash(python3 *report-editor/scripts/voice_lint.py:*)
-  - Bash(python3 *report-editor/scripts/section_move.py:*)
-  - Bash(python3 *report-editor/scripts/iso_tables.py:*)
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/figure_diff.py *)
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/structure_check.py *)
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/voice_lint.py *)
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/section_move.py *)
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/iso_tables.py *)
   - Bash(git status:*)
   - Bash(git diff:*)
   - Bash(git add:*)
@@ -34,6 +34,7 @@ model: opus
 Takes a draft that already has its facts and turns it into the version people read. The rules
 are in `RULES.md` beside this file. Read it in full before the first stage. Every rule has a
 stable id; cite ids in the critique so the user can push back on a rule, not on a sentence.
+The prose rules fold in the `unslop` skill (P1 to P29), so do not invoke it as well.
 
 **Two invariants that override everything else.**
 
@@ -51,18 +52,21 @@ stable id; cite ids in the critique so the user can push back on a rule, not on 
 | `<report.md>` | The draft. Required. |
 | `--fix` | Do not stop at the checkpoint. Take the recommended answer to every ruling and record each as `assumed` in the critique. Never splits the document. If the body cannot reach the length target without cutting evidenced content, finish the passes, report the gap in words, and stop; do not cut and do not split. |
 | `--copy` | Write the edited version to `<name>-<YYYY-MM-DD>.md` beside the original instead of editing in place. Use when other documents cite the draft by section number. |
-| `--audience` | Override the audience. Default comes from the project, else `leadership`. See RULES.md section A. |
+| `--audience` | Override the audience. Default comes from the project config, else `leadership`. See RULES.md section A. |
 
 ## Stage 0: discover the project
 
-Read the project `CLAUDE.md`. Look for a `## Report editing` section. It may name:
+Read `.claude/report-editor.json` in the project root if it exists. It is committed, so every
+run and every machine reads the same values without repeating the discovery. Keys, all optional:
 
-- `audience`: one of leadership, engineering, board.
-- `brief`: a file with the client's format or tone requirements.
-- `invariants`: a file listing claims that must survive any rewrite.
-- `verify`: one or more commands that re-derive published figures. Run each, read the output.
-- `length`: a body word target, or "from preamble" to take it from the draft's own status block.
-- `dates`: `prose` or `iso` for narrative dates.
+| Key | Value |
+|---|---|
+| `audience` | `leadership`, `engineering` or `board`. |
+| `brief` | Path to the client's format or tone requirements. |
+| `invariants` | Path to a file listing claims that must survive any rewrite. |
+| `verify` | List of commands that re-derive published figures. Run each, read the output. |
+| `length` | Body word target as a number, or `"from preamble"` to take it from the draft's status block. |
+| `dates` | `prose` or `iso` for narrative dates. |
 
 Also read the draft's own preamble and glossary. A glossary that declares two terms as
 synonyms is the only licence for using both (rule A4).
@@ -70,18 +74,19 @@ synonyms is the only licence for using both (rule A4).
 Defaults when nothing is declared: audience leadership, no brief, no invariants, bundled
 scripts only, length target 3,500 words in the body, ISO dates.
 
-Commit messages follow the project's own convention when CLAUDE.md states one. The
+Commit messages follow the project's own convention when its `CLAUDE.md` states one. The
 `docs(report):` prefixes below are the fallback. If the project has pre-commit hooks, they run
 on every stage commit and their output is read, not bypassed.
 
-If the project has no `## Report editing` section, propose one as a ruling, with the values
-discovered, so the next run does not repeat the discovery.
+If the config file is missing, propose its contents as a ruling, with the values discovered,
+and write it when the ruling is accepted (or assumed under `--fix`). Do not put these values
+in `CLAUDE.md`: it loads into every session and the values only matter here.
 
-Then run, from the skill directory:
+Then run:
 
 ```
-python3 scripts/structure_check.py <report.md>
-python3 scripts/voice_lint.py <report.md>
+${CLAUDE_SKILL_DIR}/scripts/structure_check.py <report.md>
+${CLAUDE_SKILL_DIR}/scripts/voice_lint.py <report.md>
 ```
 
 The second is the MOHARA Global English linter, bundled. Record its summary line (words,
@@ -115,17 +120,17 @@ ruling. With `--fix`, skip the wait, take every recommended answer, mark each `a
 
 ## Stage 2: structure pass
 
-Apply only the rulings. Move sections with `scripts/section_move.py` (it renumbers every
+Apply only the rulings. Move sections with `section_move.py` (it renumbers every
 cross-reference), merge, cut forward pointers, convert lists to tables, fold evidence into the
-appendix, run `scripts/iso_tables.py` for table dates. Do not touch sentence-level prose yet. A
+appendix, run `iso_tables.py` for table dates. Do not touch sentence-level prose yet. A
 ruling discovered during this stage (a contradiction between sections, say) is appended to the
 committed critique under "Rulings found in stage 2", answered the same way as the others, and
 named in the stage 2 commit. Any one-off script you write for this document goes in a scratch
 directory outside the repository, never in a commit. Then:
 
 ```
-python3 scripts/figure_diff.py <original> <edited> --ledger working/report-editor-ledger-<date>.md
-python3 scripts/structure_check.py <edited> --strict
+${CLAUDE_SKILL_DIR}/scripts/figure_diff.py <original> <edited> --ledger working/report-editor-ledger-<date>.md
+${CLAUDE_SKILL_DIR}/scripts/structure_check.py <edited> --strict
 ```
 
 Fill every Disposition cell in the ledger. Fix every contents mismatch and unresolved
@@ -147,10 +152,10 @@ before and after (sentences over 25 words, passives, unexpanded abbreviations, r
 ledger row count and how many are summed or moved versus dropped, rulings taken (and which were
 assumed), anything left open, and the paths of the critique and ledger. On a leadership
 audience, expect the prose pass to add words: glosses cost words. Say so in the critique's length
-estimate. Run the project's `verify` commands again if declared and
-state whether they still agree with the document.
+estimate. Run the project's `verify` commands again if declared and state whether they still
+agree with the document.
 
 ## When another skill wants this one
 
-Invoke after generation, with the generated file as the argument. Pass `--fix` only when the
+Invoke after generation with the generated file as the argument. Pass `--fix` only when the
 caller has already collected the user's structural decisions.

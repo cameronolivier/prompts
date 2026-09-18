@@ -1,4 +1,4 @@
-"""Tests for structure_check.py. Run: python3 -m pytest skills/report-editor/scripts -q"""
+"""Tests for structure_check.py. Run: uvx pytest skills/report-editor/scripts -q"""
 import structure_check as sc
 
 DOC = """# Report title

@@ -1,4 +1,4 @@
-"""Tests for figure_diff.py. Run: python3 -m pytest skills/report-editor/scripts -q"""
+"""Tests for figure_diff.py. Run: uvx pytest skills/report-editor/scripts -q"""
 import figure_diff as fd
 
 
