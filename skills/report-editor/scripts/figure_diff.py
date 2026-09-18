@@ -10,6 +10,7 @@ number, so renumbering alone does not show as a move. Exit code is 0 unless --st
 case any change exits 1. This is a ledger, not a gate: removing or summing a figure is allowed when
 the editor accounts for it in the ledger.
 
+Spelled-out numbers (one to twenty) count as the numeral, so "eight" becoming "8" is not a row.
 Deliberately ignored: section references (section 6, appendix C), heading numbers, list markers,
 table separator rows, fenced code, and inline code spans.
 """
@@ -107,8 +108,19 @@ def extract(text: str) -> dict:
     return {"counts": counts, "sections": sections}
 
 
+def fold_words(ex: dict) -> None:
+    """Merge spelled-out numbers into the numeral counts, so 'eight' and '8' are one figure."""
+    words = ex["counts"].pop("word", None)
+    if not words:
+        return
+    for key, n in words.items():
+        ex["counts"]["number"][key] += n
+
+
 def diff(before: str, after: str) -> list[dict]:
     b, a = extract(before), extract(after)
+    fold_words(b)
+    fold_words(a)
     rows = []
     kinds = set(b["counts"]) | set(a["counts"])
     for kind in sorted(kinds):

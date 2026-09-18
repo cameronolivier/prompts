@@ -32,10 +32,11 @@ def test_spelled_numbers_merge_with_digits():
     c = counts("Eight credentials. Later, 8 credentials again.")
     assert c["word"]["8"] == 1
     assert c["number"]["8"] == 1
-    rows = fd.diff("Eight credentials.", "8 credentials.")
-    # a spelled-to-digit change shows as two rows; the editor accounts for both
-    kinds = {(r["kind"], r["figure"]) for r in rows}
-    assert ("word", "8") in kinds and ("number", "8") in kinds
+    # a spelled-to-digit change is not a figure change, so it produces no row
+    assert fd.diff("Eight credentials.", "8 credentials.") == []
+    # but dropping one of two mentions still shows, on the numeral row
+    (row,) = fd.diff("Eight credentials, 8 keys.", "8 credentials.")
+    assert (row["kind"], row["figure"], row["before"], row["after"]) == ("number", "8", 2, 1)
 
 
 def test_structure_is_ignored():

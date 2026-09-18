@@ -16,7 +16,10 @@ L9), Google developer documentation style, and the FerroxLabs report-formatting 
   claim-to-evidence tables and credential tables live in the appendix. Nothing evidenced is
   deleted for length; it moves.
 - **S3** Dependencies flow forward. A section that other sections depend on comes before them.
-  If the thesis sits fifth, move it, or cut every forward pointer except the one in the summary.
+  If the thesis section sits after the sections that are its instances, move it in front of them.
+  This is a move, not a choice; cutting the forward pointers instead is not enough. Then cut every
+  forward pointer except the one in the summary. Use `scripts/section_move.py`, which renumbers
+  every cross-reference.
 - **S4** Method sits before findings, not after the roadmap. It compresses; it does not leave.
 - **S5** Parts are questions the reader has, in plain words: what you have, what we did, what we
   found, what we propose. The executive summary sits above the parts. The appendix has no number.
@@ -27,7 +30,9 @@ L9), Google developer documentation style, and the FerroxLabs report-formatting 
 - **S8** Acute risk (could go wrong tomorrow) and structural risk (not built to meet a
   commitment) are separate sections. Never merge them.
 - **S9** Confirmed, suspected and cleared-on-inspection are stated as three explicit buckets with
-  a boundary sentence. Method-only content does not sit inside a findings section.
+  a boundary sentence. A body section whose content is mostly method is dissolved, not kept: its
+  method sentences go to the method section, its suspected list to the risks section, its
+  boundaries to the appendix bucket. Keeping such a section because it exists is not an option.
 - **S10** Every appendix item is referenced at least once from the body. An appendix item nobody
   points at is either evidence for nothing or a body section in disguise.
 - **S11** Undefined proper names get a one-line names block under the glossary or primer.
@@ -36,9 +41,11 @@ L9), Google developer documentation style, and the FerroxLabs report-formatting 
 
 ## X. Executive summary
 
-- **X1** Half a page. About 350 words for a report under 30 pages, up to 500 for longer. It is
-  the only part some readers finish.
-- **X2** The first sentence states the most important finding and its size. It contains a number.
+- **X1** Half a page: under 400 words for a report under 30 pages, under 500 for longer. It is the
+  only part some readers finish. Count it.
+- **X2** The first sentence is the verdict, and it carries a number. Not the most alarming finding,
+  not context: the one-sentence answer to "what did you find". The verdict does not appear again
+  lower down as its own paragraph.
 - **X3** Contents: the verdict in one paragraph, three to five anchor numbers each with a "detail
   in section N" pointer, the primary recommendation as a specific action, the key limitation,
   and one sentence on the path forward.
@@ -127,8 +134,9 @@ picks one. What changes is a small set of rules, listed here. Everything else ap
   depends on culture. No engineer slang as a thesis ("cargo cult"); say the plain thing.
 - **A6** Findings name their subject inline: the identifier and its consequence in one sentence.
   Never "the issue in section 6"; say what it is.
-- **A7** Dates: ISO in tables and citations. In narrative, follow the project's declared style,
-  else ISO. Times carry a zone. Money carries a currency code (USD, GBP, ZAR).
+- **A7** Dates: ISO in tables and citations, always; `scripts/iso_tables.py` does it. In narrative,
+  follow the project's declared style, else ISO. Times carry a zone. Money carries a currency code
+  (USD, GBP, ZAR).
 - **A8** No cross-references to documents the reader does not receive. Cite by section of this
   document or by a finding id the appendix resolves.
 - **A9** Technical facts are never softened or paraphrased for any audience. An exact figure, name

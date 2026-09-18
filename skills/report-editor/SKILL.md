@@ -17,6 +17,8 @@ allowed-tools:
   - Bash(python3 *report-editor/scripts/figure_diff.py:*)
   - Bash(python3 *report-editor/scripts/structure_check.py:*)
   - Bash(python3 *report-editor/scripts/voice_lint.py:*)
+  - Bash(python3 *report-editor/scripts/section_move.py:*)
+  - Bash(python3 *report-editor/scripts/iso_tables.py:*)
   - Bash(git status:*)
   - Bash(git diff:*)
   - Bash(git add:*)
@@ -47,7 +49,7 @@ stable id; cite ids in the critique so the user can push back on a rule, not on 
 | Argument | Effect |
 |---|---|
 | `<report.md>` | The draft. Required. |
-| `--fix` | Do not stop at the checkpoint. Take the recommended answer to every ruling and record each as `assumed` in the critique. Never splits the document. |
+| `--fix` | Do not stop at the checkpoint. Take the recommended answer to every ruling and record each as `assumed` in the critique. Never splits the document. If the body cannot reach the length target without cutting evidenced content, finish the passes, report the gap in words, and stop; do not cut and do not split. |
 | `--copy` | Write the edited version to `<name>-<YYYY-MM-DD>.md` beside the original instead of editing in place. Use when other documents cite the draft by section number. |
 | `--audience` | Override the audience. Default comes from the project, else `leadership`. See RULES.md section A. |
 
@@ -113,8 +115,13 @@ ruling. With `--fix`, skip the wait, take every recommended answer, mark each `a
 
 ## Stage 2: structure pass
 
-Apply only the rulings. Move sections, merge, cut forward pointers, convert lists to tables,
-fold evidence into the appendix. Do not touch sentence-level prose yet. Then:
+Apply only the rulings. Move sections with `scripts/section_move.py` (it renumbers every
+cross-reference), merge, cut forward pointers, convert lists to tables, fold evidence into the
+appendix, run `scripts/iso_tables.py` for table dates. Do not touch sentence-level prose yet. A
+ruling discovered during this stage (a contradiction between sections, say) is appended to the
+committed critique under "Rulings found in stage 2", answered the same way as the others, and
+named in the stage 2 commit. Any one-off script you write for this document goes in a scratch
+directory outside the repository, never in a commit. Then:
 
 ```
 python3 scripts/figure_diff.py <original> <edited> --ledger working/report-editor-ledger-<date>.md
