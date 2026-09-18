@@ -16,6 +16,7 @@ allowed-tools:
   - Edit
   - Bash(python3 *report-editor/scripts/figure_diff.py:*)
   - Bash(python3 *report-editor/scripts/structure_check.py:*)
+  - Bash(python3 *report-editor/scripts/voice_lint.py:*)
   - Bash(git status:*)
   - Bash(git diff:*)
   - Bash(git add:*)
@@ -78,7 +79,12 @@ Then run, from the skill directory:
 
 ```
 python3 scripts/structure_check.py <report.md>
+python3 scripts/voice_lint.py <report.md>
 ```
+
+The second is the MOHARA Global English linter, bundled. Record its summary line (words,
+sentences, average length, count over 25 words, rules passed, per-rule counts) as the baseline.
+It reruns at the end of stage 3 and both lines go in the stage 4 report.
 
 Report what was found and what was not, in one short block, before writing anything. Without
 `--fix`, ask the user whether anything is missing and wait. With `--fix`, continue.
@@ -121,14 +127,20 @@ reference. Commit: `docs(report): restructure <name>`.
 ## Stage 3: prose pass
 
 Section by section, apply RULES.md sections P, T, A, B. Keep paragraphs under about 240
-characters and sentences under 20 words unless a fact needs more. Rerun both scripts. Any new
-ledger row gets a disposition. Commit: `docs(report): edit prose <name>`.
+characters and sentences under 20 words, never over 25 (L7). Rerun all three scripts. Any new
+ledger row gets a disposition. Any sentence the linter still flags over 25 words is split, or
+becomes a list, unless it is an enumeration a list would not improve. Any abbreviation it flags is
+expanded at first use unless it is a proper name, a unit or a currency code. Commit:
+`docs(report): edit prose <name>`.
 
 ## Stage 4: report
 
-Reply with: body and appendix word counts before and after, ledger row count and how many are
-summed or moved versus dropped, rulings taken (and which were assumed), anything left open, and
-the paths of the critique and ledger. Run the project's `verify` commands again if declared and
+Reply with: body and appendix word counts before and after, the voice linter's summary line
+before and after (sentences over 25 words, passives, unexpanded abbreviations, rules passed),
+ledger row count and how many are summed or moved versus dropped, rulings taken (and which were
+assumed), anything left open, and the paths of the critique and ledger. On a leadership
+audience, expect the prose pass to add words: glosses cost words. Say so in the critique's length
+estimate. Run the project's `verify` commands again if declared and
 state whether they still agree with the document.
 
 ## When another skill wants this one

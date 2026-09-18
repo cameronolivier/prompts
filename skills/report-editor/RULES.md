@@ -3,8 +3,10 @@
 Ids are stable. A removed rule leaves a gap. Cite ids in critiques and commit messages.
 
 Sources folded in: the `unslop` skill (open source, rules P1 to P29), the 2026-09-17 founder
-report critique, `vhs-brief`, `edit-article`, the SHAED format brief, Global English, Google
-developer documentation style, and the FerroxLabs report-formatting skill.
+report critique, `vhs-brief`, `edit-article`, the SHAED format brief, MOHARA Global English
+(itself informed by ASD-STE100 Simplified Technical English, whose structural limits are L7 to
+L9), Google developer documentation style, and the FerroxLabs report-formatting skill.
+`scripts/voice_lint.py` checks nine of the Global English rules mechanically.
 
 ## S. Structure
 
@@ -60,6 +62,11 @@ developer documentation style, and the FerroxLabs report-formatting skill.
   before you compress.
 - **L5** Over budget means cut a point, not shrink every sentence until none of them breathe.
 - **L6** Companion documents (letter, annex, brief) change together or the change is not done.
+- **L7** No sentence over 25 words. Aim under 20. A list that will not split cleanly becomes a
+  bulleted list or a table instead of one long sentence. (ASD-STE100 limit for descriptive text.)
+- **L8** No paragraph over six sentences. Split at the change of idea. (ASD-STE100.)
+- **L9** No more than three nouns in a row. "Production identity database script" becomes "the
+  script that changes the production identity database". (ASD-STE100 noun-cluster rule.)
 
 ## R. Repetition
 
@@ -209,7 +216,10 @@ Run all of these and state the results.
 
 1. `structure_check.py --strict` passes: contents match, references resolve, no self-reference.
 2. `figure_diff.py` ledger has no empty disposition.
-3. Em-dash count is zero (`grep -c "—"`).
+3. `voice_lint.py -v` run on the original and the edited file. Sentences over 25 words is zero
+   or every remaining one is an enumeration that a list would not improve. Unexpanded
+   abbreviations are only proper names, units and currency codes. Passive count is lower and
+   every remaining passive has an unknown actor or avoids assigning blame. Em-dash count is zero.
 4. Body word count against target; appendix word count.
 5. Repeated-phrase table: every remaining phrase appears at most twice.
 6. Read the executive summary alone. It answers what, so what, now what.
