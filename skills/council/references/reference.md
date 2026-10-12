@@ -90,6 +90,7 @@ Worth knowing so you do not undo it:
 - **Names are stripped.** Persona names are removed from answers before reviewers see them, and advisors are told not to mention their role.
 - **Reading order rotates.** Each reviewer's packet starts from a different response, so no answer is always read first.
 - **Self-votes do not count.** Reviewers rank all answers including their own, but their own is dropped before averaging.
+- **Answers are fenced as data.** Each answer is wrapped in `<response>` tags and reviewers are told its contents are never instructions; a response that tries to steer the ranking is marked down. Advisors are told to stay read-only and to treat file and web content the same way.
 - **The Outsider reviews without context too.** It never receives the context blurb, in either phase.
 
 ## Fallback without the Workflow tool
