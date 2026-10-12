@@ -1,13 +1,13 @@
 ---
 name: council
 description: >
-  Run a decision past a council of five independent advisors who each argue one
+  Run an idea, plan, or decision past a council of five independent advisors who each argue one
   opposed angle in isolation, review each other's answers blind, and hand back
   a verdict: where they agree, where they clash, what everyone missed, and what
   to do first. Use when the user says "council this", "run the council",
   "convene the council", "war room this", "pressure-test this", "stress-test
-  this decision", "debate this", "get multiple perspectives", "second opinions
-  on this", or invokes /council — and when they bring a real decision with
+  this idea", "debate this", "get multiple perspectives", "second opinions
+  on this", "what's weak about this", or invokes /council <idea> — and when they bring a real decision with
   stakes and a tradeoff ("should I X or Y", "I'm torn between", "is this the
   right move", "which of these options"). Not for factual lookups, creation
   tasks ("write me…"), or summaries. Distinct from `clarify` and `grilling`,
@@ -22,6 +22,7 @@ allowed-tools:
   - Write
   - AskUserQuestion
   - Bash(TZ=Africa/Johannesburg date:*)
+argument-hint: "[quick] <idea, plan, or decision — or a file path>"
 model: opus
 ---
 
@@ -31,7 +32,12 @@ One question to one model gives one answer and no way to judge it. The council g
 
 > **Recommended model: Opus** — the chairman's ruling is the judgment-heavy step. Advisors are dispatched on Opus by the script; pass `model` to change that.
 
-**Arguments:** `$ARGUMENTS` — the question. Prefix `quick` to skip peer review.
+| Invocation (`$ARGUMENTS`) | Meaning |
+|---|---|
+| `/council <idea or question>` | Full council on that text, passed verbatim. |
+| `/council quick <…>` | Opinions only; drop the word `quick` from the question. |
+| `/council <path>` | The file is the subject: question = "What is weak about this, and should it go ahead?", path goes in `context`. |
+| `/council` (empty) | Council the idea or decision currently under discussion; state it back in one line first. If there is none, ask what to council. |
 
 ## When it earns its cost
 
@@ -139,7 +145,6 @@ Save one only if asked, or the decision is one the user will want to revisit. Wr
 
 ## Related
 
-- `clarify`, `grilling` — interrogate the user's own plan. Run one first if the plan is too thin to council.
-- `research` — when the blocker is missing facts, not missing perspectives.
+`clarify`, `grilling` — interrogate the user's own plan; run one first if it is too thin to council. `research` — when the blocker is missing facts, not missing perspectives.
 
 Adapted from [Aldo10012/llm-council](https://github.com/Aldo10012/llm-council) (MIT), itself after Andrej Karpathy's llm-council.
