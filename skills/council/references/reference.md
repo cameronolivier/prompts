@@ -28,7 +28,9 @@ Loaded on demand from `SKILL.md`. Covers optional arguments, the return shape, c
 ```
 {
   question, mode,
-  advisors_failed: ["The Executor"],          // personas with no answer
+  advisors_failed: ["The Executor"],          // personas with no usable answer
+  advisors_off_topic: ["The Executor"],       // subset of the above: answered something other than the question
+  reviews_received: 5,                        // off-topic reviews are dropped before ranking
   council: [{
     persona, model, context,
     isolation,          // "full-context" | "no-project-context" | "prompt-only"
@@ -50,6 +52,8 @@ Loaded on demand from `SKILL.md`. Covers optional arguments, the return shape, c
   chairman_notes
 }
 ```
+
+**Messages typed mid-run reach advisors.** Seen in live runs: a message the user sent while the council was running showed up in advisors' contexts, and the isolated Outsider answered it instead of the question. Prompts now tell advisors to ignore such messages, each reply carries an `answered_council_question` flag, and an off-topic seat is retried once as a standard agent before being dropped.
 
 `average_rank` is lower-is-better and is computed with each reviewer's vote for their own answer removed. `isolation: "prompt-only"` means the isolated agent type was unavailable, so that seat ran as a normal agent and may have seen CLAUDE.md.
 

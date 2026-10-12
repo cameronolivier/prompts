@@ -68,7 +68,7 @@ const tests = {
     })
     const outsider = result.council.find((advisor) => advisor.persona === 'The Outsider')
     assert.equal(outsider.isolation, 'prompt-only')
-    assert.ok(logs.some((message) => message.includes('isolated agent type unavailable')))
+    assert.ok(logs.some((message) => message.includes('isolated agent was unavailable')))
   },
 
   'review letters are a shuffled permutation and stable for the same question': async () => {
@@ -155,6 +155,27 @@ const tests = {
       assert.ok(call.prompt.includes('no sign-off, timestamp, or status line'))
       assert.ok(call.prompt.includes('is not addressed to you'))
     }
+  },
+
+  'an advisor that answers something else is retried, then dropped and reported': async () => {
+    // shape copied from a live run where the isolated Outsider answered a message the user typed mid-run
+    const derailed = (persona) => ({ ...defaultOpinion(persona), stance: 'I cannot install anything.', answered_council_question: false })
+    const recovered = await convene({ question: 'Ship it?' }, {
+      opinionFor: (options) => (options.agentType ? derailed(options.label) : defaultOpinion(options.label)),
+    })
+    const outsider = recovered.result.council.find((advisor) => advisor.persona === 'The Outsider')
+    assert.equal(outsider.isolation, 'prompt-only')
+    assert.notEqual(outsider.stance, 'I cannot install anything.')
+    assert.deepEqual(recovered.result.advisors_off_topic, [])
+
+    const dropped = await convene({ question: 'Ship it?' }, {
+      opinionFor: (options) => (/Outsider|Executor/.test(options.label) ? derailed(options.label) : defaultOpinion(options.label)),
+      reviewFor: (options, validLabels) => ({ ...defaultReview(validLabels), answered_council_question: !/Skeptic/.test(options.label) }),
+    })
+    assert.deepEqual([...dropped.result.advisors_off_topic].sort(), ['The Executor', 'The Outsider'])
+    assert.deepEqual([...dropped.result.advisors_failed].sort(), ['The Executor', 'The Outsider'])
+    assert.equal(dropped.result.council.length, 3)
+    assert.equal(dropped.result.reviews_received, 2)
   },
 
   'self-votes are excluded from the aggregate ranking': async () => {

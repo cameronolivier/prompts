@@ -41,7 +41,7 @@ One question to one model gives one answer and no way to judge it. The council g
 
 ## When it earns its cost
 
-A full council is 10 agents, roughly 100–200k tokens. Run it when being wrong is expensive and the answer is honestly uncertain: a pricing or positioning call, a pivot, build-vs-buy, an architecture choice that is hard to reverse, "what is weak about this plan".
+A full council is 10 agents — about 400k tokens in a measured run, `quick` about half, mostly each agent loading its base context. Run it when being wrong is expensive and the answer is honestly uncertain: a pricing or positioning call, a pivot, build-vs-buy, an architecture choice that is hard to reverse, "what is weak about this plan".
 
 Skip it — and say why in one line — when there is one right answer, when the task is making something rather than deciding something, or when the tradeoff is trivial. If the user explicitly asked for the council anyway, run it.
 
@@ -130,6 +130,7 @@ Rules for the ruling:
 - **You may overrule the council.** If four say go and the dissent has the best argument, side with the dissent and say that you are doing so and why.
 - **Keep disagreement visible.** Do not average a real clash into "consider both". If it cannot be resolved from here, say what would resolve it.
 - **Report empty seats.** Name anyone in `advisors_failed`. If the Outsider's `isolation` is `prompt-only`, note its cold read may be contaminated.
+- **Discard off-topic answers.** A message the user types while the council runs can reach advisors, and one may answer that instead. The script drops those it detects (`advisors_off_topic`); if another slipped through, ignore that seat and say so.
 
 Close with one line: the council was N independent Claude agents with separate contexts, not different AI vendors.
 
@@ -139,7 +140,6 @@ Save one only if asked, or the decision is one the user will want to revisit. Wr
 
 ## Failure handling
 
-- Some advisors failed → rule with those who answered; name the empty seats.
 - Peer review returned nothing → rule from opinions alone and say the blind review did not run.
 - Whole workflow failed → say so, show the error, and offer the hand-run fallback or a single-perspective analysis. Do not present a solo analysis as a council.
 
