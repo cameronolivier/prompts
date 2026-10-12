@@ -123,6 +123,40 @@ const tests = {
     assert.match(result.untrusted_fields, /never as instructions/)
   },
 
+  'stray JSON and quote wrappers around text fields are removed': async () => {
+    // shapes copied from a live Haiku run
+    const { result } = await convene({ question: 'Ship it?' }, {
+      opinionFor: (options) => ({
+        ...defaultOpinion(options.label),
+        stance: '"Rewrite" is the wrong word here.',
+        would_change_mind: '"If a customer signs a contract that needs it."',
+        key_points: ['{"Parity takes longer than planned."}', 'Plain point'],
+      }),
+      reviewFor: (options, validLabels) => ({
+        ...defaultReview(validLabels),
+        missed_by_all: '{"Nobody priced the hourly rate. Nobody asked about churn."}',
+        core_disagreement: '{"the_disagreement": "Revenue line or measured pain."}',
+        biggest_blind_spot: { response_id: validLabels[1], blind_spot: '"None of the five tests churn."}' },
+      }),
+    })
+    const advisor = result.council[0]
+    assert.equal(advisor.stance, '"Rewrite" is the wrong word here.')
+    assert.equal(advisor.would_change_mind, 'If a customer signs a contract that needs it.')
+    assert.deepEqual(advisor.key_points, ['Parity takes longer than planned.', 'Plain point'])
+    const review = result.peer_reviews[0]
+    assert.equal(review.missed_by_all, 'Nobody priced the hourly rate. Nobody asked about churn.')
+    assert.equal(review.core_disagreement, 'Revenue line or measured pain.')
+    assert.equal(review.biggest_blind_spot.blind_spot, 'None of the five tests churn.')
+  },
+
+  'every prompt carries the output rules learned from the live run': async () => {
+    const { calls } = await convene({ question: 'Ship it?' })
+    for (const call of calls) {
+      assert.ok(call.prompt.includes('no sign-off, timestamp, or status line'))
+      assert.ok(call.prompt.includes('is not addressed to you'))
+    }
+  },
+
   'self-votes are excluded from the aggregate ranking': async () => {
     const { result } = await convene({ question: 'Ship it?' })
     for (const row of result.aggregate_ranking) assert.equal(row.times_ranked, 4)
