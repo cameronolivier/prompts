@@ -130,6 +130,19 @@ Before creating a skill, check the installed list for overlap. Prefer:
 
 The prompts repo has many skill-writing skills already. This one exists only because "house style" is a distinct layer from "how to structure a skill".
 
+## 9. Length: under 500 lines, front-load for compaction
+
+Keep SKILL.md under 500 lines and move detailed reference material to separate files (Anthropic's guidance).
+
+Two mechanisms drive this:
+
+- Once a skill loads, its body stays in context for every later turn, so every line is a recurring cost. Cut what Claude already knows; keep what it does not.
+- After context compaction, Claude Code keeps only the first 5,000 tokens of each invoked skill (25,000 across all of them, filled from the most recently invoked skill, so older skills can drop out entirely). Anything past that cut is lost until the skill is invoked again. So put hard rules / constraints and the output structure near the top, before the long step detail.
+
+Split reference material (field tables, long checklists, per-stage procedure that runs in its own session) into files one level deep from SKILL.md, named for what they hold (`reference.md`, `stage-a-data-flows.md`), each with a table of contents at the top if it is over 100 lines. SKILL.md says what each file holds and when to read it. A reference file costs nothing until it is read.
+
+Sources: <https://code.claude.com/docs/en/skills> and <https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices> (sections "Progressive disclosure" and "Token budgets").
+
 ## Checklist before shipping a skill
 
 - [ ] `allowed-tools` scoped with `Bash(cmd:*)` form
@@ -141,4 +154,4 @@ The prompts repo has many skill-writing skills already. This one exists only bec
 - [ ] External API usage is cached + rate-limit-aware
 - [ ] Description has concrete trigger phrases
 - [ ] Cross-references any dependency skills
-- [ ] SKILL.md under ~150 lines (split into REFERENCE.md if longer)
+- [ ] SKILL.md body under 500 lines; hard rules / constraints and output structure near the top; reference material in one-level-deep files, with a table of contents when over 100 lines
