@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Move a GitHub Project (v2) item to a named status using cached config.
 #
-# Reads .github/project.yml (from bootstrap.sh) and performs the move in
+# Reads .github/project.json (from bootstrap.sh) and performs the move in
 # 2 GraphQL calls: resolve the project item for the issue, then set the Status
 # field. If the issue isn't on the board, it is added first.
 #
@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-CONFIG=".github/project.yml"
+CONFIG=".github/project.json"
 CLOSE=0
 REOPEN=0
 ISSUE=""
@@ -30,10 +30,10 @@ Usage: $(basename "$0") <issue-number> <status-name> [options]
 Options:
   --close        Also close the issue (for terminal statuses like Done)
   --reopen       Also reopen the issue (for resuming work)
-  -p <path>      Config path (default: .github/project.yml)
+  -p <path>      Config path (default: .github/project.json)
   -h             Show this help
 
-Requires .github/project.yml. Run bootstrap.sh once to create it.
+Requires .github/project.json. Run bootstrap.sh once to create it.
 EOF
 }
 
@@ -62,7 +62,16 @@ fi
 
 command -v gh >/dev/null || { echo "error: gh CLI not installed" >&2; exit 1; }
 command -v jq >/dev/null || { echo "error: jq not installed"     >&2; exit 1; }
-command -v yq >/dev/null || { echo "error: yq not installed (brew install yq)" >&2; exit 1; }
+
+# Legacy YAML cache (older bootstrap.sh) → convert once to JSON and carry on
+case "$CONFIG" in
+  *.yml|*.yaml) LEGACY="$CONFIG"; CONFIG="${CONFIG%.*}.json" ;;
+  *)            LEGACY="${CONFIG%.json}.yml" ;;
+esac
+if [[ ! -f "$CONFIG" && -f "$LEGACY" ]]; then
+  "$(dirname "$0")/yml-to-json.sh" "$LEGACY" "$CONFIG"
+  echo "converted $LEGACY → $CONFIG. Commit it and git rm $LEGACY." >&2
+fi
 
 if [[ ! -f "$CONFIG" ]]; then
   echo "error: $CONFIG not found." >&2
@@ -70,8 +79,7 @@ if [[ ! -f "$CONFIG" ]]; then
   exit 1
 fi
 
-# Read cached IDs via YAML → JSON → jq (portable across yq variants)
-CONFIG_JSON=$(yq -o=json '.' "$CONFIG" 2>/dev/null || yq '.' "$CONFIG")
+CONFIG_JSON=$(cat "$CONFIG")
 
 PROJECT_ID=$(jq -r   '.project.id'                            <<<"$CONFIG_JSON")
 PROJECT_NUMBER=$(jq -r '.project.number'                      <<<"$CONFIG_JSON")

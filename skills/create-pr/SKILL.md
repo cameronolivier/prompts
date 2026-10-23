@@ -81,7 +81,7 @@ Create a GitHub pull request with auto-generated content from the current branch
 
 7. **Move the linked issue to "In Review":**
    - If a `Closes #N` link was added (step 4), invoke the `github-project-status` skill: `move.sh <N> "In Review"`.
-   - Skip silently if `.github/project.yml` is absent — that repo isn't on a project board.
+   - Skip silently if neither `.github/project.json` nor legacy `.github/project.yml` exists — that repo isn't on a project board.
    - Do not block PR creation on this; report failures as a warning only.
 
 ## Default PR Structure
