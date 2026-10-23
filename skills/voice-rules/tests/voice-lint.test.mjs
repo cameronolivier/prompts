@@ -65,3 +65,30 @@ test('CLI: exit 1 on errors, 0 on notes only, JSON output, stdin defaults to hum
   assert.equal(json[0].findings[0].id, 'H3');
   assert.equal(run(['--audience', 'bogus', '-'], '').status, 2);
 });
+
+test('chatbot openers ending in "!" match before a space', () => {
+  assert.deepEqual(rules(lint('Certainly! Here it is.\nOf course! Yes.\n', 'human')), ['chatbot', 'chatbot']);
+});
+
+test('words with a literal meaning are notes, not errors', () => {
+  const found = lint('Snake case uses an underscore. The enhanced mode is on.\n', 'human');
+  assert.deepEqual(found.map((f) => [f.rule, f.severity]), [['ai-vocab-soft', 'note'], ['ai-vocab-soft', 'note']]);
+});
+
+test('hard-wrapped prose is checked as one paragraph, with the right line numbers', () => {
+  const words = Array.from({ length: 16 }, () => 'word').join(' ');
+  const found = lint(`Intro line.\n\nWe ship this in order\nto test it. ${words}\n${words}.\n`, 'human');
+  assert.deepEqual(found.map((f) => [f.rule, f.line]), [['filler', 3], ['long-sentence', 4]]);
+});
+
+test('a fence closes only on a marker at least as long as its opener', () => {
+  assert.deepEqual(lint('````md\n```\ncrucial — inside\n```\n````\n', 'human'), []);
+});
+
+test('CLI: unreadable file and bad --audience exit 2 with a message', () => {
+  const run = (args) => spawnSync('node', [CLI, ...args], { encoding: 'utf8' });
+  const missing = run(['/nonexistent/file.md']);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /cannot read \/nonexistent\/file\.md: ENOENT/);
+  assert.match(run(['--audience']).stderr, /must be auto, agent or human/);
+});

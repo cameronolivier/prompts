@@ -1,56 +1,49 @@
 #!/usr/bin/env node
-// Deterministic checks for the voice-rules skill. Zero dependencies.
+// Deterministic checks for the voice-rules skill. Zero dependencies, Node 18+.
 //
 // Usage:
 //   voice-lint.mjs [--json] [--audience auto|agent|human] <file|->...
 //
-// Exit: 0 no errors (notes allowed), 1 at least one error, 2 usage.
+// Exit: 0 no errors (notes allowed), 1 at least one error, 2 usage or unreadable file.
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const words = (list) => new RegExp(`\\b(${list.join('|')})\\b`, 'i');
+// Words that only read as AI tells. `(?![\w])` instead of a trailing \b so entries may end in punctuation.
+const phrase = (list) => new RegExp(`\\b(${list.join('|')})(?!\\w)`, 'gi');
 
-const AI_VOCAB = words([
-  'delve[sd]?', 'delving', 'crucial', 'pivotal', 'robust', 'seamless(?:ly)?', 'tapestry',
-  'testament', 'underscores?', 'showcas(?:e|es|ing)', 'fostering', 'garner', 'intricate',
-  'interplay', 'vibrant', 'enhance[sd]?', 'additionally',
-]);
+const AI_VOCAB = phrase(['delve[sd]?', 'delving', 'crucial', 'pivotal', 'robust', 'seamless(?:ly)?', 'tapestry', 'interplay', 'vibrant', 'showcas(?:e|es|ing)', 'fostering', 'intricate', 'additionally']);
+// Same tell, but with a common literal meaning (an underscore character, an "enhanced" mode): a reader decides.
+const AI_VOCAB_SOFT = phrase(['underscores?', 'enhance[sd]?', 'garner(?:s|ed)?', 'testament']);
 
 const PLAIN_WORDS = [
-  [/\butili[sz](e|es|ed|ing)\b/i, 'use'],
-  [/\bleverag(e|es|ed|ing)\b/i, 'use'],
-  [/\bfacilitat(e|es|ed|ing)\b/i, 'help'],
-  [/\bnumerous\b/i, 'many'],
-  [/\bcommenc(e|es|ed|ing)\b/i, 'start'],
-  [/\binitiat(e|es|ed|ing)\b/i, 'start'],
-  [/\bsufficient\b/i, 'enough'],
-  [/\bprior to\b/i, 'before'],
-  [/\bin the event that\b/i, 'if'],
+  [/\butili[sz](e|es|ed|ing)\b/gi, 'use'],
+  [/\bleverag(e|es|ed|ing)\b/gi, 'use'],
+  [/\bfacilitat(e|es|ed|ing)\b/gi, 'help'],
+  [/\bnumerous\b/gi, 'many'],
+  [/\bcommenc(e|es|ed|ing)\b/gi, 'start'],
+  [/\binitiat(e|es|ed|ing)\b/gi, 'start'],
+  [/\bsufficient\b/gi, 'enough'],
+  [/\bprior to\b/gi, 'before'],
+  [/\bin the event that\b/gi, 'if'],
 ];
 
-const FILLER = words([
-  'in order to', "it(?:'s| is) worth noting", 'it is important to note', 'due to the fact that',
-  'as previously mentioned', 'needless to say', 'at the end of the day', 'could potentially',
-]);
-
-const CHATBOT = words([
-  'great question', 'i hope this helps', 'let me know if', "you're absolutely right",
-  'happy to help', 'certainly!', 'of course!',
-]);
-
-const PASSIVE = /\b(is|are|was|were|be|been|being)\s+(?:\w+ly\s+)?(\w+ed|built|done|made|given|taken|written|shown|known|seen|sent|kept|held|found)\b/i;
-const SHOUT = /\b(MUST|NEVER|ALWAYS|CRITICAL|IMPORTANT|DO NOT)\b/;
+const FILLER = phrase(['in order to', "it(?:'s| is) worth noting", 'it is important to note', 'due to the fact that', 'as previously mentioned', 'needless to say', 'at the end of the day', 'could potentially']);
+const CHATBOT = phrase(['great question', 'i hope this helps', 'let me know if', "you're absolutely right", 'happy to help', 'certainly!', 'of course!']);
+const PASSIVE = /\b(is|are|was|were|be|been|being)\s+(?:\w+ly\s+)?(\w+ed|built|done|made|given|taken|written|shown|known|seen|sent|kept|held|found)\b/gi;
+const SHOUT = /\b(MUST|NEVER|ALWAYS|CRITICAL|IMPORTANT|DO NOT)\b/g;
+const LONG_SENTENCE = 30; // words; H6 aims under 20, so 30 flags only clear outliers
 
 // rule → [voice-rules ID, audiences it applies to, severity]
 const RULES = {
   'em-dash': ['H2', ['human'], 'error'],
   'ai-vocab': ['H3', ['human'], 'error'],
+  'ai-vocab-soft': ['H3', ['human'], 'note'],
   'plain-word': ['H3', ['human'], 'note'],
   filler: ['H7/A9', ['human', 'agent'], 'note'],
   chatbot: ['H8', ['human'], 'error'],
-  'curly-quote': ['H9', ['human', 'agent'], 'error'],
+  'curly-quote': ['H9', ['human'], 'error'],
   'heading-emoji': ['H9', ['human'], 'error'],
   passive: ['H5', ['human'], 'note'],
   'long-sentence': ['H6', ['human'], 'note'],
@@ -65,11 +58,16 @@ export function audienceFor(path) {
   return 'agent';
 }
 
-// Lines a reader sees as prose: drops frontmatter, code fences and tables; masks inline code.
-function proseLines(text) {
+// Paragraphs a reader sees as prose: drops frontmatter, code fences and tables; masks inline code.
+// A paragraph ends at a blank line, a heading or a list item, so hard-wrapped sentences stay whole.
+// Each block keeps `starts`: the text offset where each source line begins, to map a match back to its line.
+export function proseBlocks(text) {
   const lines = text.split(/\r?\n/);
-  const out = [];
+  const blocks = [];
+  let block = null;
   let fence = null;
+  const close = () => { if (block) blocks.push(block); block = null; };
+
   let i = 0;
   if (lines[0] === '---') {
     const end = lines.indexOf('---', 1);
@@ -77,17 +75,32 @@ function proseLines(text) {
   }
   for (; i < lines.length; i++) {
     const line = lines[i];
-    const marker = line.match(/^\s*(```|~~~)/);
+    const marker = line.match(/^\s*(`{3,}|~{3,})/);
     if (marker) {
+      close();
       if (!fence) fence = marker[1];
-      else if (marker[1] === fence) fence = null;
+      else if (marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
       continue;
     }
-    if (fence || /^\s*\|/.test(line)) continue;
-    out.push({ n: i + 1, text: line.replace(/`[^`]*`/g, '``') });
+    if (fence || /^\s*\|/.test(line) || line.trim() === '') { close(); continue; }
+    const heading = /^#{1,6}\s/.test(line);
+    if (heading || /^\s*([-*+]|\d+[.)])\s/.test(line)) close();
+    if (!block) block = { text: '', starts: [], lines: [], heading };
+    block.starts.push(block.text.length ? block.text.length + 1 : 0);
+    block.lines.push(i + 1);
+    block.text += (block.text ? ' ' : '') + line.trim();
+    if (heading) close();
   }
-  return out;
+  close();
+  for (const b of blocks) b.text = b.text.replace(/`[^`]*`/g, (m) => '`'.padEnd(m.length - 1, ' ') + '`');
+  return blocks;
 }
+
+const lineAt = (block, index) => {
+  let n = block.lines[0];
+  for (let k = 0; k < block.starts.length && block.starts[k] <= index; k++) n = block.lines[k];
+  return n;
+};
 
 export function lint(text, audience) {
   const findings = [];
@@ -96,34 +109,36 @@ export function lint(text, audience) {
     if (!audiences.includes(audience)) return;
     findings.push({ rule, id, severity, line, excerpt: excerpt.trim().slice(0, 120), ...(extra && { suggest: extra }) });
   };
+  const scan = (block, re, rule, suggest) => {
+    for (const m of block.text.matchAll(re)) add(rule, lineAt(block, m.index), m[0], suggest);
+  };
   const shouts = [];
 
-  for (const { n, text: line } of proseLines(text)) {
-    if (/—|\s–\s/.test(line)) add('em-dash', n, line);
-    const vocab = line.match(AI_VOCAB);
-    if (vocab) add('ai-vocab', n, vocab[0]);
-    for (const [re, plain] of PLAIN_WORDS) {
-      const m = line.match(re);
-      if (m) add('plain-word', n, m[0], plain);
-    }
-    const filler = line.match(FILLER);
-    if (filler) add('filler', n, filler[0]);
-    const chat = line.match(CHATBOT);
-    if (chat) add('chatbot', n, chat[0]);
-    if (/[“”‘’]/.test(line)) add('curly-quote', n, line);
-    if (/^#{1,6}\s/.test(line) && /\p{Extended_Pictographic}/u.test(line)) add('heading-emoji', n, line);
-    const passive = line.match(PASSIVE);
-    if (passive) add('passive', n, passive[0]);
-    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+  for (const block of proseBlocks(text)) {
+    scan(block, /—|\s–\s/g, 'em-dash');
+    scan(block, AI_VOCAB, 'ai-vocab');
+    scan(block, AI_VOCAB_SOFT, 'ai-vocab-soft');
+    for (const [re, plain] of PLAIN_WORDS) scan(block, re, 'plain-word', plain);
+    scan(block, FILLER, 'filler');
+    scan(block, CHATBOT, 'chatbot');
+    scan(block, /[“‘][^“”‘’]{0,80}[”’]|[“”‘’]/g, 'curly-quote');
+    scan(block, PASSIVE, 'passive');
+    if (block.heading && /\p{Extended_Pictographic}/u.test(block.text)) add('heading-emoji', block.lines[0], block.text);
+    let offset = 0;
+    for (const sentence of block.text.split(/(?<=[.!?])\s+/)) {
+      const at = block.text.indexOf(sentence, offset);
+      offset = at + sentence.length;
       const count = sentence.split(/\s+/).filter((w) => /\w/.test(w)).length;
-      if (count > 30) add('long-sentence', n, sentence, `${count} words`);
+      if (count > LONG_SENTENCE) add('long-sentence', lineAt(block, at), sentence, `${count} words`);
     }
-    if (SHOUT.test(line)) shouts.push({ n, line });
+    for (const m of block.text.matchAll(SHOUT)) shouts.push({ line: lineAt(block, m.index), word: m[0] });
   }
-  if (shouts.length >= 3) for (const { n, line } of shouts) add('shouting', n, line);
+  if (shouts.length >= 3) for (const { line, word } of shouts) add('shouting', line, word);
 
   return findings.sort((a, b) => a.line - b.line);
 }
+
+const USAGE = 'usage: voice-lint.mjs [--json] [--audience auto|agent|human] <file|->...';
 
 function main(argv) {
   let json = false;
@@ -133,21 +148,27 @@ function main(argv) {
     const arg = argv[i];
     if (arg === '--json') json = true;
     else if (arg === '--audience') audience = argv[++i];
-    else if (arg === '-h' || arg === '--help') {
-      console.log('usage: voice-lint.mjs [--json] [--audience auto|agent|human] <file|->...');
-      return 0;
-    } else files.push(arg);
+    else if (arg === '-h' || arg === '--help') { console.log(USAGE); return 0; }
+    else files.push(arg);
   }
-  if (!files.length || !['auto', 'agent', 'human'].includes(audience)) {
-    console.error('usage: voice-lint.mjs [--json] [--audience auto|agent|human] <file|->...');
+  if (!['auto', 'agent', 'human'].includes(audience)) {
+    console.error(`voice-lint: --audience must be auto, agent or human (got ${audience ?? 'nothing'})`);
     return 2;
   }
+  if (!files.length) { console.error(USAGE); return 2; }
 
-  const results = files.map((file) => {
-    const text = readFileSync(file === '-' ? 0 : file, 'utf8');
+  const results = [];
+  for (const file of files) {
+    let text;
+    try {
+      text = readFileSync(file === '-' ? 0 : file, 'utf8');
+    } catch (err) {
+      console.error(`voice-lint: cannot read ${file}: ${err.code || err.message}`);
+      return 2;
+    }
     const aud = audience === 'auto' ? (file === '-' ? 'human' : audienceFor(file)) : audience;
-    return { file, audience: aud, findings: lint(text, aud) };
-  });
+    results.push({ file, audience: aud, findings: lint(text, aud) });
+  }
 
   if (json) console.log(JSON.stringify(results, null, 2));
   else {
