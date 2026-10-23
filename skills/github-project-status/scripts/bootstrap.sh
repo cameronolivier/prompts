@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap .github/project.yml from a GitHub Projects v2 board.
+# Bootstrap .github/project.json from a GitHub Projects v2 board.
 #
 # Caches project ID, Status (or other single-select) field ID, and option IDs
 # so routine status moves skip the lookup chain (4 GraphQL calls → 2).
@@ -7,7 +7,7 @@
 # Usage:
 #   bootstrap.sh [-n <number>] [-o <owner>] [-f <field>] [-p <path>]
 #
-# Defaults: owner=@me, field=Status, path=.github/project.yml
+# Defaults: owner=@me, field=Status, path=.github/project.json
 # If -n is omitted, prints a picker from `gh project list`.
 
 set -euo pipefail
@@ -15,7 +15,7 @@ set -euo pipefail
 OWNER="@me"
 FIELD="Status"
 NUMBER=""
-CONFIG=".github/project.yml"
+CONFIG=".github/project.json"
 
 usage() {
   cat <<EOF
@@ -25,7 +25,7 @@ Usage: $(basename "$0") [-n <number>] [-o <owner>] [-f <field>] [-p <path>]
   -n  Project number (prompted if omitted)
   -o  Owner: user login, org login, or @me (default: @me)
   -f  Single-select field to cache (default: Status)
-  -p  Output path (default: .github/project.yml)
+  -p  Output path (default: .github/project.json)
   -h  Show this help
 
 Writes the config file. Does not git-add or commit.
@@ -85,34 +85,35 @@ if [[ -z "$FIELD_ID" || "$FIELD_ID" == "null" ]]; then
   exit 1
 fi
 
-OPTIONS_YAML=$(jq -r --arg f "$FIELD" '
-  .fields[] | select(.name==$f) | .options // [] |
-  .[] | "        \"\(.name)\": \"\(.id)\""
+OPTIONS=$(jq -c --arg f "$FIELD" '
+  [.fields[] | select(.name==$f) | .options // [] | .[] | {key: .name, value: .id}] | from_entries
 ' <<<"$FIELD_JSON")
 
-if [[ -z "$OPTIONS_YAML" ]]; then
+if [[ "$OPTIONS" == "{}" ]]; then
   echo "error: field '$FIELD' has no options — not a single-select field?" >&2
   exit 1
 fi
 
+[[ "$NUMBER" =~ ^[0-9]+$ ]] || { echo "error: project number must be numeric, got '$NUMBER'" >&2; exit 1; }
+
 FIELD_KEY=$(tr '[:upper:]' '[:lower:]' <<<"$FIELD" | tr -cd 'a-z0-9_')
 
 mkdir -p "$(dirname "$CONFIG")"
-cat > "$CONFIG" <<EOF
-# GitHub Projects v2 coordinates — cached by github-project-status skill.
-# Regenerate with: $(basename "$0")
-project:
-  title: "$PROJECT_TITLE"
-  number: $NUMBER
-  owner: "$OWNER"
-  id: "$PROJECT_ID"
-  fields:
-    $FIELD_KEY:
-      name: "$FIELD"
-      id: "$FIELD_ID"
-      options:
-$OPTIONS_YAML
-EOF
+jq -n \
+  --arg gen "github-project-status skill. Regenerate with: $(basename "$0")" \
+  --arg title "$PROJECT_TITLE" --argjson number "$NUMBER" --arg owner "$OWNER" \
+  --arg id "$PROJECT_ID" --arg key "$FIELD_KEY" --arg field "$FIELD" \
+  --arg field_id "$FIELD_ID" --argjson options "$OPTIONS" '
+  {
+    _generated_by: $gen,
+    project: {
+      title: $title, number: $number, owner: $owner, id: $id,
+      fields: { ($key): { name: $field, id: $field_id, options: $options } }
+    }
+  }' > "$CONFIG"
+
+LEGACY="${CONFIG%.json}.yml"
+[[ -f "$LEGACY" ]] && echo "note: $LEGACY is superseded — git rm it."
 
 echo ""
 echo "Wrote $CONFIG:"
