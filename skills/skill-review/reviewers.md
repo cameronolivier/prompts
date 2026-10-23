@@ -71,7 +71,7 @@ Paste the Output schema example below the shared prompt, so the reviewer sees th
 
 Rule file: skill-conventions (`{CONVENTIONS}`). Cite its numbered sections as `SC-n`.
 
-Check every section against every skill. The pre-gate already checks bare `Bash`, missing `model:` and long shell blocks; judge what it cannot: whether the chosen model fits the work (SC-7), whether per-dispatch `model:` is set on Agent calls the skill makes, whether repeated logic belongs in a script (SC-2), whether per-repo state goes to a committed JSON file (SC-3), whether external API use is cached and rate-limit aware (SC-4), and whether the skill reimplements another skill instead of invoking it (SC-5).
+Check every section against every skill. The pre-gate already checks bare `Bash`, missing `model:` and long shell blocks; judge what it cannot: whether the chosen model fits the work (SC-7), whether per-dispatch `model:` is set on Agent calls the skill makes, whether repeated logic belongs in a script (SC-2), whether per-repo state goes to a committed JSON file (SC-3), whether external API use is cached and rate-limit aware (SC-4), whether the skill reimplements another skill instead of invoking it (SC-5), and whether hard rules and the output structure sit near the top, inside the first 5,000 tokens that survive compaction (SC-9).
 
 ## Axis 2: best practice
 

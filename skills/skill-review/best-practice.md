@@ -40,13 +40,13 @@ Cite rule IDs in findings (`BP-A7`, `BP-S3`). Each rule carries a tag and a defa
 
 ### Structure and disclosure
 
-- **BP-A19 Body length** [pregate, should] `SKILL.md` body stays under 500 lines; content beyond that moves to separate files. Source: anthropic-best-practices#Token budgets
+- **BP-A19 Body length** [pregate, should] `SKILL.md` body stays under 500 lines; content beyond that moves to separate files. Source: anthropic-best-practices#Token budgets House rule: skill-conventions §9.
 - **BP-A20 Signposted references** [judge, should] Each supporting file is linked from `SKILL.md` with what it holds and when to read it ("read `references/api-errors.md` if the API returns non-200"), not a bare "see references/". Source: claude-code-skills#Add supporting files; agentskills-best-practices#Structure large skills with progressive disclosure
 - **BP-A21 One level deep** [pregate, should] Reference files link directly from `SKILL.md`. A reference file that sends Claude to another reference file risks partial reads. Source: anthropic-best-practices#Avoid deeply nested references
-- **BP-A22 TOC on long references** [pregate, should] Reference files over 100 lines open with a contents list. Source: anthropic-best-practices#Structure longer reference files with a table of contents
+- **BP-A22 TOC on long references** [pregate, should] Reference files over 100 lines open with a contents list. Source: anthropic-best-practices#Structure longer reference files with a table of contents House rule: skill-conventions §9.
 - **BP-A23 Forward slashes** [pregate, must] File paths use `/`, never `\`. Source: anthropic-best-practices#Avoid Windows-style paths
 - **BP-A24 Descriptive file names** [judge, note] Files and folders are named for content and grouped by domain (`reference/finance.md`, not `docs/file1.md`). Source: anthropic-best-practices#Runtime environment
-- **BP-A25 Survives compaction** [judge, should] The most important instructions sit near the top: after compaction only the first 5,000 tokens of each invoked skill are re-attached, within a 25,000-token shared budget, most recent first. Source: claude-code-skills#Skill content lifecycle
+- **BP-A25 Survives compaction** [judge, should] The most important instructions sit near the top: after compaction only the first 5,000 tokens of each invoked skill are re-attached, within a 25,000-token shared budget, most recent first. Source: claude-code-skills#Skill content lifecycle House rule: skill-conventions §9.
 
 ### Workflows
 
@@ -100,7 +100,7 @@ Cite rule IDs in findings (`BP-A7`, `BP-S3`). Each rule carries a tag and a defa
 - **BP-S7 Metadata shape** [pregate, should] `metadata` is a map of string keys to string values, with keys unique enough to avoid collisions and not reusing frontmatter field names. Source: agentskills-spec#metadata field; claude-code-skills#Frontmatter reference
 - **BP-S8 Portable fields** [judge, note] Only `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` survive claude.ai upload, the Skills API, and `package_skill.py`; any other key is a hard error there. Flag only for skills meant to leave Claude Code. Source: claude-code-skills#Using skill frontmatter outside Claude Code
 - **BP-S9 allowed-tools form** [judge, note] The spec form is a space-separated string; Claude Code also accepts a YAML list. Flag only for skills meant for other clients. Source: agentskills-spec#allowed-tools field
-- **BP-S10 Token budget** [pregate, should] The `SKILL.md` body stays under about 5,000 tokens (roughly 20,000 characters) as well as 500 lines. Source: agentskills-spec#Progressive disclosure
+- **BP-S10 Token budget** [pregate, should] The `SKILL.md` body stays under about 5,000 tokens (roughly 20,000 characters) as well as 500 lines. Source: agentskills-spec#Progressive disclosure House rule: skill-conventions §9.
 - **BP-S11 Relative references** [pregate, should] File references use paths relative to the skill root, and every linked file exists. Source: agentskills-spec#File references
 - **BP-S12 Validator passes** [pregate, note] `skills-ref validate <skill-dir>` reports no errors where the tool is available. Source: agentskills-spec#Validation
 

@@ -207,8 +207,8 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   const body = lines.slice(fm.bodyStart).join('\n');
   const bodyLines = lines.length - fm.bodyStart;
   const tokens = Math.round(body.length / 4);
-  if (bodyLines > 500) add('length', 'should', skillPath, 1, `Body is ${bodyLines} lines; keep SKILL.md under 500 and move reference to sibling files.`, 'BP-A19');
-  if (tokens > 5000) add('length', 'should', skillPath, 1, `Body is ~${tokens} tokens. After compaction only the first 5,000 survive: put constraints and output shape first.`, 'BP-S10');
+  if (bodyLines > 500) add('length', 'should', skillPath, 1, `Body is ${bodyLines} lines; keep SKILL.md under 500 and move reference to sibling files.`, 'SC-9');
+  if (tokens > 5000) add('length', 'should', skillPath, 1, `Body is ~${tokens} tokens. After compaction only the first 5,000 survive: put constraints and output shape first.`, 'SC-9');
 
   // inline shell
   let fence = null;
@@ -265,7 +265,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
       }
     });
     if (!isSkillFile && mdLines.length > 100 && !/^#+\s*(contents|table of contents)/im.test(mdLines.slice(0, 30).join('\n'))) {
-      add('reference-toc', 'should', rel(md), 1, `${mdLines.length}-line reference file with no table of contents near the top.`, 'BP-A22');
+      add('reference-toc', 'should', rel(md), 1, `${mdLines.length}-line reference file with no table of contents near the top.`, 'SC-9');
     }
   }
 

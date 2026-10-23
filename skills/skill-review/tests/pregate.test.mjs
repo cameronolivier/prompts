@@ -157,9 +157,9 @@ Run \${CLAUDE_SKILL_DIR}/scripts/run.mjs, or node \${CLAUDE_SKILL_DIR}/scripts/r
   const found = checkSkill(root, 'skills/claude-helper', noVoice).findings.map((f) => `${f.cites}:${f.file.split('/').pop()}`);
   assert.deepEqual(found.sort(), [
     'BP-A21:ref.md',
-    'BP-A22:ref.md',
     'BP-A23:SKILL.md',
     'BP-A3:SKILL.md',
     'BP-X3:SKILL.md',
+    'SC-9:ref.md',
   ]);
 });
