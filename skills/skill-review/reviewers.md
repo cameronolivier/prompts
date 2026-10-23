@@ -41,8 +41,11 @@ If you cannot fill all three, leave the finding out.
 
 Severity: must = the skill breaks, misfires, or is unsafe. should = a rule is broken with a real cost. note = an improvement with no cost if skipped.
 
-Return only a JSON array (the schema below), or [] when you find nothing. Zero findings is a normal result.
+Return only a JSON array, or [] when you find nothing. Zero findings is a normal result.
+Each object has exactly these keys: axis, path, line (integer), rule, quote, severity, title, body, breaks.
 ```
+
+Paste the Output schema example below the shared prompt, so the reviewer sees the shape.
 
 ## Output schema
 

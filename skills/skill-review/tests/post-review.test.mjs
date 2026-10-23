@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commentBody, commentableLines, marker, plan, reviewPayload } from '../scripts/post-review.mjs';
+import { commentBody, commentableLines, invalidFindings, marker, plan, reviewPayload } from '../scripts/post-review.mjs';
+
+test('invalidFindings names each missing field', () => {
+  const ok = { path: 'p', line: 3, rule: 'R', severity: 'should', title: 't', body: 'b' };
+  assert.deepEqual(invalidFindings([ok]), []);
+  assert.deepEqual(invalidFindings([{ path: 'p', line: 0, rule: 'OV-2', severity: 'high', rule_text: 'x' }]), [
+    'finding 0 (OV-2 p): title, body, line (positive integer), severity (must|should|note)',
+  ]);
+});
 
 const PATCH = `@@ -1,3 +1,4 @@
  line one

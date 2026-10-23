@@ -71,6 +71,18 @@ export function plan(findings, threads, commentable) {
   return { inline, summary, skipped };
 }
 
+const REQUIRED = ['path', 'line', 'rule', 'severity', 'title', 'body'];
+
+// Reviewers drift from the schema; refuse to post a finding a reader could not act on.
+export function invalidFindings(findings) {
+  return findings.flatMap((f, i) => {
+    const missing = REQUIRED.filter((k) => f[k] === undefined || f[k] === '');
+    if (!Number.isInteger(f.line) || f.line < 1) missing.push('line (positive integer)');
+    if (f.severity && !['must', 'should', 'note'].includes(f.severity)) missing.push('severity (must|should|note)');
+    return missing.length ? [`finding ${i} (${f.rule || '?'} ${f.path || '?'}): ${[...new Set(missing)].join(', ')}`] : [];
+  });
+}
+
 export function commentBody(f) {
   const lead = f.stillPresent ? '_Still present after the earlier thread was resolved._\n\n' : '';
   const also = f.also.length ? `\n\nAlso on line${f.also.length > 1 ? 's' : ''} ${f.also.join(', ')}.` : '';
@@ -118,6 +130,11 @@ function main(argv) {
   const review = JSON.parse(readFileSync(file, 'utf8'));
   if (!/^[\w.-]+\/[\w.-]+$/.test(review.repo || '') || !Number.isInteger(review.pr) || !/^[0-9a-f]{40}$/.test(review.commit || '')) {
     console.error('review.json needs repo "owner/name", integer pr, and a 40-hex commit');
+    return 2;
+  }
+  const invalid = invalidFindings(review.findings || []);
+  if (invalid.length) {
+    console.error(`review.json has findings missing fields; fix them before posting:\n  ${invalid.join('\n  ')}`);
     return 2;
   }
 
