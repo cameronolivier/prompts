@@ -60,22 +60,23 @@ Sources: `unslop` (rule numbers in brackets) and Cam's CLAUDE.md.
 
 ## Lint
 
-`voice-lint` checks the rules a script can decide. Judgement rules (A1–A5, A8–A12, H1, H4, H6, H10) need a reader.
+`voice-lint` checks the parts of the rules a script can decide. Every rule except A7, H2, H3, H8 and H9 needs a reader as well; the linter only screens H5, H6 and H7 for candidates.
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/voice-lint.mjs [--json] [--audience auto|agent|human] <file>...
 ```
 
-`--audience auto` (the default) picks the set by file name: `README*`, `*template*`, `*comment-format*` and `*.txt` are human, all other `.md` files are agent. Code fences and tables are skipped. Each finding carries its rule ID and a severity: `error` breaks the rule, `note` is a heuristic that needs a reader to confirm.
+Requires Node 18 or later, no packages. `--audience` names the reader, and so the set: `auto` (the default) picks it by file name. `README*`, `*template*`, `*comment-format*` and `*.txt` are human; all other `.md` files are agent. Code fences and tables are skipped; wrapped lines are checked as one paragraph. Each finding carries its rule ID and a severity: `error` breaks the rule, `note` is a heuristic that needs a reader to confirm. Exit 0 means no errors, 1 means errors, 2 means a usage error or a file it could not read.
 
 | Lint rule | Rule | Set | Severity |
 |---|---|---|---|
 | `em-dash` | H2 | human | error |
 | `ai-vocab` | H3 | human | error |
+| `ai-vocab-soft` (underscore, enhance, garner, testament) | H3 | human | note |
 | `plain-word` | H3 | human | note |
-| `filler` | H7, A9 | both | note |
+| `filler` | H7 (human), A9 (agent) | each | note |
 | `chatbot` | H8 | human | error |
-| `curly-quote` | H9 | both | error |
+| `curly-quote` | H9 | human | error |
 | `heading-emoji` | H9 | human | error |
 | `passive` | H5 | human | note |
 | `long-sentence` (over 30 words) | H6 | human | note |
