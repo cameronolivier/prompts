@@ -13,7 +13,6 @@ allowed-tools:
   - Bash(gh auth status:*)
   - Bash(gh auth refresh:*)
   - Bash(jq:*)
-  - Bash(yq:*)
 model: haiku
 ---
 
@@ -27,31 +26,38 @@ Projects v2 boards have no "columns" — "columns" are values of the **Status** 
 
 ## The config file (source of truth)
 
-Each repo caches its project coordinates in `.github/project.yml`. This file is **committed** so every agent / machine reads it without hitting the API.
+Each repo caches its project coordinates in `.github/project.json`. This file is **committed** so every agent / machine reads it without hitting the API.
 
-```yaml
-# .github/project.yml
-project:
-  number: 7
-  owner: "@me"              # or org / user login
-  id: PVT_kwHOA...          # project node ID
-  fields:
-    status:
-      id: PVTSSF_lAHOA...   # Status field ID
-      options:              # name → option ID
-        Backlog:       "abc12345"
-        Todo:          "def67890"
-        "In Progress": "ghi13579"
-        "In Review":   "jkl24680"
-        Done:          "mno11223"
-        Blocked:       "pqr44556"
+```json
+{
+  "project": {
+    "number": 7,
+    "owner": "my-org",
+    "id": "PVT_kwHOA...",
+    "fields": {
+      "status": {
+        "id": "PVTSSF_lAHOA...",
+        "options": {
+          "Backlog": "abc12345",
+          "Todo": "def67890",
+          "In Progress": "ghi13579",
+          "In Review": "jkl24680",
+          "Done": "mno11223",
+          "Blocked": "pqr44556"
+        }
+      }
+    }
+  }
+}
 ```
 
-Treat this as cache, not secrets — these IDs are not sensitive.
+`project.id` is the project node ID, `fields.status.id` the Status field ID, `options` maps name → option ID. Treat this as cache, not secrets — these IDs are not sensitive.
+
+**Legacy `.github/project.yml`:** `move.sh` converts it to `project.json` on first run (via `scripts/yml-to-json.sh`, which uses `yq` if installed and parses the bootstrap shape otherwise), then carries on. Commit the JSON and `git rm` the YAML.
 
 ## Steady-state move
 
-Always use the bundled script — it reads `.github/project.yml`, resolves the item ID, and sets the status in 2 GraphQL calls (1 query + 1 mutation). Regenerating the graphql by hand for each move is wasteful and error-prone.
+Always use the bundled script — it reads `.github/project.json`, resolves the item ID, and sets the status in 2 GraphQL calls (1 query + 1 mutation). Regenerating the graphql by hand for each move is wasteful and error-prone.
 
 ```bash
 ./scripts/move.sh 42 "In Progress"
@@ -82,11 +88,11 @@ When other skills operate on an issue, this skill must move the card. Apply the 
 Rules:
 - Pair `Done` with `--close` and `In Progress` with `--reopen` — status and issue state must stay in sync.
 - Even if the project has a built-in workflow that auto-moves closed issues, run the explicit `move.sh ... --close` anyway — workflows can be disabled silently and the call is idempotent.
-- If the mapped status name isn't in `.github/project.yml`, `move.sh` fails with the list of available options. Pick the nearest match (`Review` → `In Review`, `WIP` → `In Progress`) and re-run. Don't invent new statuses.
+- If the mapped status name isn't in `.github/project.json`, `move.sh` fails with the list of available options. Pick the nearest match (`Review` → `In Review`, `WIP` → `In Progress`) and re-run. Don't invent new statuses.
 
 ## Bootstrap (one-time, per repo)
 
-When `.github/project.yml` is missing, run the bundled script from this skill:
+When `.github/project.json` is missing, run the bundled script from this skill:
 
 ```bash
 # Interactive — shows a picker
@@ -96,13 +102,13 @@ When `.github/project.yml` is missing, run the bundled script from this skill:
 ./scripts/bootstrap.sh -n 7 -o my-org -f Status
 ```
 
-The script resolves `@me` to the real login (so the committed config works for teammates), fetches the project + Status field + all options in 2 GraphQL calls, and writes `.github/project.yml`. It does not auto-commit — review, then commit manually.
+The script resolves `@me` to the real login (so the committed config works for teammates), fetches the project + Status field + all options in 2 GraphQL calls, and writes `.github/project.json`. It does not auto-commit — review, then commit manually.
 
-If the target is outside the current repo, pass `-p path/to/project.yml`. To cache a non-Status single-select (e.g. `Priority`), pass `-f Priority` and the key in the YAML becomes `priority`.
+If the target is outside the current repo, pass `-p path/to/project.json`. To cache a non-Status single-select (e.g. `Priority`), pass `-f Priority` and the key in the JSON becomes `priority`.
 
 ## Fallback (no config / stale IDs)
 
-If `.github/project.yml` is missing, mutation fails with `Could not resolve to a node`, or option names have drifted:
+If `.github/project.json` is missing, mutation fails with `Could not resolve to a node`, or option names have drifted:
 
 1. Re-run bootstrap.
 2. If that's not possible right now, degrade to the uncached 4-call path: `gh project view` → `field-list` → `item-list -L 200` → `item-edit`. Cache the result into memory for the rest of the session, and offer to persist it.

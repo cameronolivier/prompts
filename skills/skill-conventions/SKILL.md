@@ -56,8 +56,8 @@ Always `chmod +x` and `bash -n` the scripts before shipping.
 
 Skills that need stable per-repo data (project IDs, field IDs, external system coordinates) must **not** rely on CLAUDE.md, memory, or conversation-scoped lookups. Cache to a committed file:
 
-- `.github/project.yml` for GitHub project config
-- `.claude/<skill>.yml` for other skill-specific state
+- `.github/project.json` for GitHub project config — JSON, not YAML, so `jq` and Node both read it without pulling in `yq`
+- `.claude/<skill>.json` for other skill-specific state — JSON for the same reason, so scripts never need `yq` on a teammate's machine
 - The skill provides a `bootstrap.sh` that writes this file once per repo
 - The skill's main script(s) read it on every invocation
 
