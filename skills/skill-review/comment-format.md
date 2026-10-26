@@ -25,13 +25,13 @@ Baselines: skill-conventions, best-practice.md (distilled <date>), voice-rules<,
 - `path:line` RULE: one line each.
 
 ### Already raised
-- `path` RULE: open thread on the PR, not posted again. Shown only on a PR with earlier skill-review threads.
+- `path` RULE: open thread on the PR, not posted again.
 
 ### Dropped
-- <title>: missing <location | rule | breaks>. Lists every finding the evidence contract removed, so a person can overrule it.
+- <title>: missing <location | rule | breaks>, or <the reason verification dropped it>.
 ```
 
-Omit an empty section. With no findings at all, the report is the heading, the verdict and the Reviewed line.
+Omit an empty section. With no findings at all, the report is the heading, the verdict and the Reviewed line. "Already raised" appears only on a PR with earlier skill-review threads. "Dropped" lists every finding the evidence contract or verification removed, so a person can overrule the filter.
 
 ## Posted review
 
