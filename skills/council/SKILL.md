@@ -43,6 +43,8 @@ A full council is 10 agents — about 400k tokens in a measured run, `quick` abo
 
 Skip it — and say why in one line — when there is one right answer, when the task is making something rather than deciding something, or when the tradeoff is trivial. If the user explicitly asked for the council anyway, run it.
 
+**Confirm the spend before step 2** unless the user typed `/council` or asked for the council by name. In one line, state the mode and its cost ("Full council: 10 agents, about 400k tokens. Run it, run `quick`, or skip?") and wait for a yes.
+
 ## The five seats
 
 | Advisor | Lens | Gets context |
