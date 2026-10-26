@@ -1,0 +1,58 @@
+{
+  "sources": [
+    {
+      "id": "anthropic-best-practices",
+      "layer": "anthropic",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices.md",
+      "hash": "6a3264a4be1bce7b556ce20b81a9b7bd81706ec215a0c2e849768406f25f0f2f"
+    },
+    {
+      "id": "claude-code-skills",
+      "layer": "anthropic",
+      "url": "https://code.claude.com/docs/en/skills.md",
+      "hash": "71d055f43198286509b02348260014029f687206cd686e8861bb661d580478eb"
+    },
+    {
+      "id": "anthropic-skill-creator",
+      "layer": "anthropic",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/skill-creator/SKILL.md",
+      "hash": "c08c99c48c17362743b8fc4bca846d1bab882ea6c9919771da2d4fe2dffa4609"
+    },
+    {
+      "id": "agentskills-spec",
+      "layer": "spec",
+      "url": "https://agentskills.io/specification.md",
+      "hash": "1a2d1eea00d11405797cf4fe35302b174be14913cf99259bb97540e24730f575"
+    },
+    {
+      "id": "agentskills-best-practices",
+      "layer": "spec",
+      "url": "https://agentskills.io/skill-creation/best-practices.md",
+      "hash": "61d41ccfa48cdaa7a29262d7d61bdbe199ffc698ca07f41432f5d86390a74a88"
+    },
+    {
+      "id": "agentskills-descriptions",
+      "layer": "spec",
+      "url": "https://agentskills.io/skill-creation/optimizing-descriptions.md",
+      "hash": "09f70d991353479fa7736e380167112ee5fd4a9ffe7b130bfb749dc9695f1280"
+    },
+    {
+      "id": "superpowers-writing-skills",
+      "layer": "extra",
+      "url": "https://raw.githubusercontent.com/obra/superpowers/main/skills/writing-skills/SKILL.md",
+      "hash": "67222569684b34ee86b8287248e181af87bde36dadc7e016c969968ad84f23c7"
+    },
+    {
+      "id": "mattpocock-writing-for-agents",
+      "layer": "extra",
+      "url": "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/writing-for-agents/SKILL.md",
+      "hash": "482e371e48efc2dbb401aef7d124467f523c52b2bf9c486dedf60e2f48a7ce98"
+    },
+    {
+      "id": "mattpocock-skill-mechanics",
+      "layer": "extra",
+      "url": "https://raw.githubusercontent.com/mattpocock/skills/main/skills/productivity/writing-for-agents/SKILL-MECHANICS.md",
+      "hash": "eec74bac6af1f45dee949ef6f08fcfd620f72f8de826753b4362de5e4de2e3b1"
+    }
+  ]
+}
