@@ -13,7 +13,7 @@
 //
 // Output: JSON on stdout. Exit 0 always unless usage error (2); findings live in the JSON.
 
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +32,9 @@ const SKILL_FILES = ['SKILL.md', 'skill.md'];
 
 // --- frontmatter -------------------------------------------------------------
 
-// Small YAML subset: scalars, quoted strings, `- item` lists, `>`/`|` block scalars, inline [a, b].
+// Small YAML subset: scalars (wrapped onto indented lines too), quoted keys and strings, `- item`
+// lists, `>`/`|` block scalars, inline [a, b], and nested maps (kept as `{}`, not inspected).
+// `unsupported` marks YAML this parser cannot read, so callers blame the parser, not the skill.
 export function parseFrontmatter(text) {
   const lines = text.split(/\r?\n/);
   if (lines[0] !== '---') return { error: 'no frontmatter: file must start with ---', data: null, bodyStart: 0 };
@@ -41,6 +43,7 @@ export function parseFrontmatter(text) {
 
   const data = {};
   const lineOf = {};
+  const raw = {}; // plain or quoted scalar text, so continuation lines can extend it
   let key = null;
   let block = null;
   for (let i = 1; i < end; i++) {
@@ -52,26 +55,40 @@ export function parseFrontmatter(text) {
     }
     if (/^\s*#/.test(line) || line.trim() === '') continue;
     const item = line.match(/^\s+-\s+(.*)$/);
-    if (item && key) {
+    if (item && key && raw[key] === undefined) {
+      if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key])) continue; // inside a nested map
       if (!Array.isArray(data[key])) data[key] = [];
       data[key].push(unquote(item[1]));
       continue;
     }
-    const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    const kv = line.match(/^(['"]?)([A-Za-z0-9_-]+)\1:(?:\s+(.*))?$/);
     if (!kv) {
-      if (/^\s+\S/.test(line) && key) continue; // nested map (hooks, metadata)
-      return { error: `line ${i + 1}: cannot parse "${line}"`, data: null, bodyStart: end + 1 };
+      if (/^\s+\S/.test(line) && key) {
+        if (raw[key] !== undefined) {
+          // Wrapped scalar: an indented line continues the value above it.
+          raw[key] += ` ${line.trim()}`;
+          data[key] = unquote(raw[key]);
+        } else if (data[key] === '') {
+          data[key] = {}; // nested map (hooks, metadata)
+        }
+        continue;
+      }
+      return { error: `line ${i + 1}: cannot parse "${line}"`, unsupported: true, data: null, bodyStart: end + 1 };
     }
-    key = kv[1];
+    key = kv[2];
     lineOf[key] = i + 1;
-    const value = kv[2];
-    if (value === '>' || value === '|' || /^[>|][-+]?$/.test(value)) {
+    delete raw[key];
+    const value = (kv[3] ?? '').trim();
+    if (/^[>|][-+]?$/.test(value)) {
       block = [];
       block.style = value[0];
       data[key] = '';
     } else if (/^\[.*\]$/.test(value)) {
       data[key] = value.slice(1, -1).split(',').map((s) => unquote(s.trim())).filter(Boolean);
+    } else if (value === '') {
+      data[key] = ''; // a list or nested map follows
     } else {
+      raw[key] = value;
       data[key] = unquote(value);
     }
   }
@@ -121,11 +138,14 @@ function run(cmd, args, opts = {}) {
   return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}`.trim(), missing: r.error?.code === 'ENOENT' };
 }
 
-function walk(dir) {
+// The reviewed tree is untrusted: a symlink can point at ~/.ssh or any host file, so never follow one.
+// Symlinks go to `links` (when given) and are reported, not read.
+export function walk(dir, links = []) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     if (e.name === 'node_modules' || e.name.startsWith('.')) return [];
     const p = join(dir, e.name);
-    return e.isDirectory() ? walk(p) : [p];
+    if (e.isSymbolicLink()) { links.push(p); return []; }
+    return e.isDirectory() ? walk(p, links) : [p];
   });
 }
 
@@ -148,7 +168,20 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   const rel = (p) => relative(root, p);
   const skillPath = join(dir, file);
   const findings = [];
-  const add = (check, severity, path, line, message, cites) => findings.push({ check, severity, file: path, line, message, cites });
+  // Same field names as a reviewer finding and review.json, so synthesis merges without mapping.
+  // title is the first sentence of the message; body is the whole message.
+  const add = (check, severity, path, line, body, rule) =>
+    findings.push({ check, severity, path, line, rule, title: body.split(/(?<=\.)\s/)[0].replace(/\.$/, ''), body });
+
+  const links = [];
+  const files = walk(abs, links);
+  for (const link of links.filter((l) => l !== join(abs, file))) {
+    add('symlink', 'should', rel(link), 1, 'Symlink in the skill folder. The pre-gate does not follow it; ship the file itself, or a symlink can expose files outside the skill.', 'SEC-5');
+  }
+  if (lstatSync(join(abs, file)).isSymbolicLink()) {
+    add('symlink', 'must', skillPath, 1, `${file} is a symlink. Not read; ship the file itself.`, 'SEC-5');
+    return { dir, skillFile: skillPath, frontmatter: {}, bodyLines: 0, approxTokens: 0, files: files.map(rel).sort(), symlinks: links.map(rel).sort(), voice: { ran: false, reason: 'skill file is a symlink' }, skillsRef: { ran: false, reason: 'skill file is a symlink' }, findings };
+  }
 
   if (file === 'skill.md') {
     add('skill-file-case', 'should', skillPath, 1, 'Rename skill.md to SKILL.md. Claude Code and the Agent Skills spec look for SKILL.md.', 'BP-S1');
@@ -160,7 +193,9 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   const data = fm.data || {};
   const at = (k) => fm.lineOf?.[k] || 1;
 
-  if (fm.error) add('frontmatter', 'must', skillPath, 1, `Frontmatter does not parse: ${fm.error}.`, 'BP-A1');
+  if (fm.unsupported) {
+    add('frontmatter', 'note', skillPath, 1, `The pre-gate parser could not read this frontmatter (${fm.error}). Frontmatter checks were skipped; a reviewer must check it by hand.`, 'BP-A1');
+  } else if (fm.error) add('frontmatter', 'must', skillPath, 1, `Frontmatter does not parse: ${fm.error}.`, 'BP-A1');
   else {
     // name
     const folder = basename(dir);
@@ -184,7 +219,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
       if (/<([a-z][\w-]*)[^>]*>[\s\S]*<\/\1>/i.test(desc)) add('description', 'must', skillPath, at('description'), 'description contains an XML tag pair; the spec forbids XML tags in descriptions.', 'BP-S5');
       else if (/<[a-z][\w-]*>/i.test(desc)) add('description', 'note', skillPath, at('description'), 'description has an angle-bracket placeholder; Claude Code accepts it, the spec forbids XML tags.', 'BP-S5');
       if (/\b(I can|I will|I'll|you can|you should)\b/i.test(desc)) add('description', 'should', skillPath, at('description'), 'Write the description in third person ("Reviews X. Use when...").', 'BP-A6');
-      if (!/["“][^"”]{3,}["”]|\buse when\b|\bwhen the user\b/i.test(desc)) add('description', 'note', skillPath, at('description'), 'No trigger phrases or "Use when" clause in the description.', 'BP-A9');
+      if (!/["“][^"”]{3,}["”]|\buse (?:this skill )?when(?:ever)?\b|\bwhen the user\b/i.test(desc)) add('description', 'note', skillPath, at('description'), 'No trigger phrases or "Use when" clause in the description.', 'BP-A9');
     }
 
     for (const k of Object.keys(data)) {
@@ -236,12 +271,12 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
     }
   });
 
-  // paths
+  // paths: match real paths (a user folder, a script file), not prose that names the pattern.
   lines.forEach((line, i) => {
-    if (/(^|[\s`(])(\/Users\/|\/home\/[a-z]|~\/\.claude\/skills\/)/.test(line)) {
+    if (/(^|[\s`(])(\/Users\/[^/\s`]+\/|\/home\/[a-z][^/\s`]*\/|~\/\.claude\/skills\/[^/\s`]+)/.test(line)) {
       add('paths', 'should', skillPath, i + 1, 'Hard-coded absolute path. Use ${CLAUDE_SKILL_DIR} (or ${CLAUDE_PLUGIN_ROOT}).', 'BP-A36');
     }
-    if (/(^|[\s`])\.\/scripts\//.test(line)) {
+    if (/(^|[\s`])\.\/scripts\/[\w.-]+\.\w+/.test(line)) {
       add('paths', 'should', skillPath, i + 1, './scripts/ resolves against the project, not the skill. Use ${CLAUDE_SKILL_DIR}/scripts/.', 'BP-A36');
     }
     if (/\b[\w.-]+\\[\w.-]+\.(md|py|sh|mjs|js|json|ya?ml)\b/.test(line)) {
@@ -254,7 +289,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   });
 
   // links to sibling files
-  const mdFiles = walk(abs).filter((p) => p.endsWith('.md') && !/\/tests?\//.test(relative(abs, p).replace(/^/, '/')));
+  const mdFiles = files.filter((p) => p.endsWith('.md') && !isTestFile(relative(abs, p)));
   for (const md of mdFiles) {
     const mdLines = readFileSync(md, 'utf8').split(/\r?\n/);
     const isSkillFile = md === join(abs, file);
@@ -274,7 +309,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   }
 
   // scripts
-  for (const script of walk(abs).filter((p) => /\.(sh|bash|mjs|cjs|js|py)$/.test(p) && !/\/tests?\//.test(p))) {
+  for (const script of files.filter((p) => /\.(sh|bash|mjs|cjs|js|py)$/.test(p) && !/(^|\/)tests?\//.test(relative(abs, p)))) {
     const path = rel(script);
     const src = readFileSync(script, 'utf8');
     const hasShebang = src.startsWith('#!');
@@ -285,7 +320,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
       : run(process.execPath, ['--check', script]);
     if (!check.ok && !check.missing) add('scripts', 'must', path, 1, `Syntax check fails: ${check.out.split('\n')[0]}`, 'CR-1');
   }
-  const hasTests = walk(abs).some((p) => isTestFile(relative(abs, p)));
+  const hasTests = files.some((p) => isTestFile(relative(abs, p)));
   const hasScripts = existsSync(join(abs, 'scripts'));
   if (hasScripts && !hasTests) {
     add('tests', 'note', skillPath, 1, 'Skill ships scripts but no tests (no tests/ folder, *.test.mjs or test-*.mjs file).', 'CR-6');
@@ -321,7 +356,8 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
     frontmatter: data,
     bodyLines,
     approxTokens: tokens,
-    files: walk(abs).map(rel).sort(),
+    files: files.map(rel).sort(),
+    symlinks: links.map(rel).sort(),
     voice,
     skillsRef,
     findings,

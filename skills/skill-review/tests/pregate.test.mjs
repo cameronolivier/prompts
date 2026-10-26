@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { checkSkill, findSkills, isTestFile, parseFrontmatter } from '../scripts/pregate.mjs';
@@ -126,17 +126,17 @@ test('voice-lint findings are folded in with their voice-rules ID', () => {
   const result = checkSkill(root, 'skills/v', { voiceLint: lint });
   assert.equal(result.voice.ran, true);
   const voice = result.findings.filter((f) => f.check.startsWith('voice:'));
-  assert.deepEqual(voice.map((f) => [f.check, f.severity, f.file]), [
+  assert.deepEqual(voice.map((f) => [f.check, f.severity, f.path]), [
     ['voice:em-dash', 'should', 'skills/v/README.md'],
     ['voice:ai-vocab', 'should', 'skills/v/README.md'],
   ]);
-  assert.equal(voice[0].cites, 'H2 (voice-rules, human)');
+  assert.equal(voice[0].rule, 'H2 (voice-rules, human)');
 });
 
 test('every finding cites a rule ID', () => {
   const root = tree({ 'skills/bad/SKILL.md': '---\nname: bad\n---\nRun ./scripts/x.sh\n' });
   for (const f of checkSkill(root, 'skills/bad', noVoice).findings) {
-    assert.match(f.cites, /^(BP-[ASX]\d+|SC-\d+|CR-\d+|[AH]\d+ \(voice-rules)/, f.check);
+    assert.match(f.rule, /^(BP-[ASX]\d+|SC-\d+|CR-\d+|SEC-\d+|[AH]\d+ \(voice-rules)/, f.check);
   }
 });
 
@@ -154,7 +154,7 @@ Run \${CLAUDE_SKILL_DIR}/scripts/run.mjs, or node \${CLAUDE_SKILL_DIR}/scripts/r
     'skills/claude-helper/ref.md': `# Ref\n\nSee [deeper](deeper.md).\n${'line\n'.repeat(110)}`,
     'skills/claude-helper/deeper.md': '# Deeper\n',
   });
-  const found = checkSkill(root, 'skills/claude-helper', noVoice).findings.map((f) => `${f.cites}:${f.file.split('/').pop()}`);
+  const found = checkSkill(root, 'skills/claude-helper', noVoice).findings.map((f) => `${f.rule}:${f.path.split('/').pop()}`);
   assert.deepEqual(found.sort(), [
     'BP-A21:ref.md',
     'BP-A23:SKILL.md',
@@ -175,4 +175,79 @@ test('tests beside the code count as tests', () => {
   assert.ok(!checks(checkSkill(withTest, 'skills/c', noVoice)).includes('note:tests'));
   const without = tree({ 'skills/d/SKILL.md': GOOD, 'skills/d/scripts/run.mjs': '' });
   assert.ok(checks(checkSkill(without, 'skills/d', noVoice)).includes('note:tests'));
+});
+
+test('symlinks are reported and never followed', () => {
+  const root = tree({ 'skills/s/SKILL.md': GOOD, 'secret.txt': 'TOKEN=hunter2 — crucial\n' });
+  symlinkSync(join(root, 'secret.txt'), join(root, 'skills/s/notes.md'));
+  const lint = new URL('../../voice-rules/scripts/voice-lint.mjs', import.meta.url).pathname;
+  const result = checkSkill(root, 'skills/s', { voiceLint: lint });
+  assert.deepEqual(result.symlinks, ['skills/s/notes.md']);
+  assert.ok(!result.files.includes('skills/s/notes.md'));
+  assert.deepEqual(result.findings.filter((f) => f.check === 'symlink').map((f) => [f.path, f.severity, f.rule]), [['skills/s/notes.md', 'should', 'SEC-5']]);
+  assert.ok(!JSON.stringify(result).includes('hunter2'));
+
+  const linked = tree({ 'real.md': GOOD, 'skills/l/x.txt': '' });
+  symlinkSync(join(linked, 'real.md'), join(linked, 'skills/l/SKILL.md'));
+  assert.deepEqual(checkSkill(linked, 'skills/l', noVoice).findings.map((f) => [f.check, f.severity]), [['symlink', 'must']]);
+});
+
+test('findings carry review.json field names', () => {
+  const root = tree({ 'skills/bad/SKILL.md': '---\nname: bad\n---\nbody\n' });
+  for (const f of checkSkill(root, 'skills/bad', noVoice).findings) {
+    assert.deepEqual(Object.keys(f), ['check', 'severity', 'path', 'line', 'rule', 'title', 'body']);
+    assert.ok(f.title && !f.title.endsWith('.'));
+  }
+});
+
+test('parseFrontmatter: wrapped plain and quoted scalars, quoted keys, nested maps, CRLF', () => {
+  const { data, error } = parseFrontmatter([
+    '---',
+    'name: x',
+    'description: Does a thing and',
+    '  continues. Use when x',
+    '"model": sonnet',
+    "title: 'a: b'",
+    'note: "starts here',
+    '  and ends here"',
+    'hooks:',
+    '  PreToolUse:',
+    '    - matcher: Bash',
+    'allowed-tools:',
+    '  - Read',
+    '---',
+  ].join('\r\n'));
+  assert.equal(error, null);
+  assert.equal(data.description, 'Does a thing and continues. Use when x');
+  assert.equal(data.model, 'sonnet');
+  assert.equal(data.title, 'a: b');
+  assert.equal(data.note, 'starts here and ends here');
+  assert.deepEqual(data.hooks, {});
+  assert.deepEqual(data['allowed-tools'], ['Read']);
+});
+
+test('YAML the parser cannot read is a note about the parser, not a must on the skill', () => {
+  const root = tree({ 'skills/y/SKILL.md': '---\nname: y\n? complex key\n---\nbody\n' });
+  const found = checkSkill(root, 'skills/y', noVoice).findings.filter((f) => f.check === 'frontmatter');
+  assert.deepEqual(found.map((f) => f.severity), ['note']);
+  assert.match(found[0].body, /parser could not read/);
+});
+
+test('"Use whenever" counts as a trigger clause', () => {
+  const root = tree({ 'skills/w/SKILL.md': GOOD.replace('Use when the user says "check my widget".', 'Use whenever editing a widget.') });
+  assert.ok(!checkSkill(root, 'skills/w', noVoice).findings.some((f) => f.rule === 'BP-A9'));
+});
+
+test('prose that warns about a path pattern is not flagged', () => {
+  const root = tree({ 'skills/p/SKILL.md': GOOD.replace('# Good', '# Good\n\nA `./scripts/` path resolves against the project. Never write /Users/ paths.') });
+  assert.ok(!checkSkill(root, 'skills/p', noVoice).findings.some((f) => f.check === 'paths'));
+});
+
+test('a tree under a folder named test still gets script syntax checks', () => {
+  const base = mkdtempSync(join(tmpdir(), 'pregate-'));
+  const root = join(base, 'test', 'r');
+  mkdirSync(join(root, 'skills/t/scripts'), { recursive: true });
+  writeFileSync(join(root, 'skills/t/SKILL.md'), GOOD);
+  writeFileSync(join(root, 'skills/t/scripts/bad.mjs'), 'const = ;\n');
+  assert.ok(checkSkill(root, 'skills/t', noVoice).findings.some((f) => f.check === 'scripts' && f.severity === 'must'));
 });
