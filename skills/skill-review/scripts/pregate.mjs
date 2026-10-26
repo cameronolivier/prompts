@@ -138,6 +138,10 @@ export function voiceLintPath() {
   return candidates.find((p) => existsSync(p)) || null;
 }
 
+// Tests live in a tests/ folder or sit beside the code (run.test.mjs, test-run.mjs, test_run.py).
+export const isTestFile = (path) =>
+  /(^|\/)tests?\//.test(path) || /(^|\/)(test-[^/]+|[^/]+\.(test|spec))\.[cm]?[jt]s$/.test(path) || /(^|\/)(test_[^/]+|[^/]+_test)\.py$/.test(path);
+
 export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   const abs = join(root, dir);
   const file = skillFileIn(abs);
@@ -281,9 +285,11 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
       : run(process.execPath, ['--check', script]);
     if (!check.ok && !check.missing) add('scripts', 'must', path, 1, `Syntax check fails: ${check.out.split('\n')[0]}`, 'CR-1');
   }
-  const testsDir = ['tests', 'test'].map((d) => join(abs, d)).find((d) => existsSync(d));
+  const hasTests = walk(abs).some((p) => isTestFile(relative(abs, p)));
   const hasScripts = existsSync(join(abs, 'scripts'));
-  if (hasScripts && !testsDir) add('tests', 'note', skillPath, 1, 'Skill ships scripts but no tests/ folder.', 'CR-6');
+  if (hasScripts && !hasTests) {
+    add('tests', 'note', skillPath, 1, 'Skill ships scripts but no tests (no tests/ folder, *.test.mjs or test-*.mjs file).', 'CR-6');
+  }
 
   // voice
   let voice = { ran: false, reason: 'voice-rules not installed' };

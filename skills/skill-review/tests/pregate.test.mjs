@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { checkSkill, findSkills, parseFrontmatter } from '../scripts/pregate.mjs';
+import { checkSkill, findSkills, isTestFile, parseFrontmatter } from '../scripts/pregate.mjs';
 
 function tree(files) {
   const root = mkdtempSync(join(tmpdir(), 'pregate-'));
@@ -162,4 +162,17 @@ Run \${CLAUDE_SKILL_DIR}/scripts/run.mjs, or node \${CLAUDE_SKILL_DIR}/scripts/r
     'BP-X3:SKILL.md',
     'SC-9:ref.md',
   ]);
+});
+
+test('tests beside the code count as tests', () => {
+  assert.ok(isTestFile('tests/run.test.mjs'));
+  assert.ok(isTestFile('scripts/test-council-workflow.mjs'));
+  assert.ok(isTestFile('scripts/run.test.mjs'));
+  assert.ok(isTestFile('scripts/test_run.py'));
+  assert.ok(!isTestFile('scripts/council-workflow.js'));
+  assert.ok(!isTestFile('scripts/attest.mjs'));
+  const withTest = tree({ 'skills/c/SKILL.md': GOOD, 'skills/c/scripts/run.mjs': '', 'skills/c/scripts/test-run.mjs': '' });
+  assert.ok(!checks(checkSkill(withTest, 'skills/c', noVoice)).includes('note:tests'));
+  const without = tree({ 'skills/d/SKILL.md': GOOD, 'skills/d/scripts/run.mjs': '' });
+  assert.ok(checks(checkSkill(without, 'skills/d', noVoice)).includes('note:tests'));
 });
