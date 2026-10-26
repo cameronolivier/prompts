@@ -1,31 +1,39 @@
 #!/usr/bin/env node
-// Lists the user's commits in every git repo directly under a root folder, inside a time window.
+// Lists commits inside a time window, for one repo or every repo directly under a folder.
 //
 // Usage:
 //   node collect-git.mjs --root /Users/me/dev/acme --since 2026-10-16T14:00:00Z --author 'first|last'
+//   node collect-git.mjs --root /Users/me/dev/acme --since 2026-10-16T14:00:00Z --team
 //
-// Prints one block per repo with commits: "== repo" then "  MM-DD hash subject" lines, oldest first.
+// --author keeps only the user's commits. --team keeps every author and adds the author name to each line.
+// Prints one block per repo with commits: "== repo" then "  MM-DD hash [author] subject" lines, oldest first.
 
-import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { reposUnder } from "./detect-project.mjs";
 
 function parseArgs(argv) {
-  const args = {};
-  for (let i = 0; i < argv.length; i += 2) args[argv[i].replace(/^--/, "")] = argv[i + 1];
-  if (!args.root || !args.since || !args.author) throw new Error("--root, --since and --author are required");
+  const args = { team: false };
+  for (let i = 0; i < argv.length; i++) {
+    const key = argv[i].replace(/^--/, "");
+    if (key === "team") args.team = true;
+    else args[key] = argv[++i];
+  }
+  if (!args.root || !args.since || (!args.author && !args.team)) {
+    throw new Error("--root, --since and one of --author or --team are required");
+  }
   return args;
 }
 
-function commits(repo, since, author) {
+function commits(repo, { since, author, team }) {
+  const gitArgs = ["-C", repo, "log", "--all", `--since=${since}`, "--date=format:%m-%d", "--reverse"];
+  // Team mode skips merge commits and bots; in the user's own mode a merge they made is their work.
+  if (team) gitArgs.push("--no-merges", "--format=%ad %h [%an] %s");
+  else gitArgs.push(`--author=${author}`, "--regexp-ignore-case", "--extended-regexp", "--format=%ad %h %s");
   try {
-    const out = execFileSync(
-      "git",
-      ["-C", repo, "log", "--all", `--since=${since}`, `--author=${author}`, "--regexp-ignore-case",
-        "--extended-regexp", "--date=format:%m-%d", "--format=%ad %h %s", "--reverse"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    );
-    return [...new Set(out.split("\n").filter(Boolean))];
+    const out = execFileSync("git", gitArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const lines = out.split("\n").filter(Boolean).filter((line) => !team || !/\[[^\]]*\[bot\]\]/.test(line));
+    return [...new Set(lines)];
   } catch {
     return [];
   }
@@ -33,12 +41,10 @@ function commits(repo, since, author) {
 
 try {
   const args = parseArgs(process.argv.slice(2));
-  for (const name of fs.readdirSync(args.root).sort()) {
-    const repo = path.join(args.root, name);
-    if (!fs.existsSync(path.join(repo, ".git"))) continue;
-    const lines = commits(repo, args.since, args.author);
+  for (const repo of reposUnder(path.resolve(args.root)).sort()) {
+    const lines = commits(repo, args);
     if (!lines.length) continue;
-    console.log(`== ${name}`);
+    console.log(`== ${path.basename(repo)}`);
     for (const line of lines) console.log(`  ${line}`);
   }
 } catch (error) {

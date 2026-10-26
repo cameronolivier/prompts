@@ -9,6 +9,7 @@ Lessons from the first deck (a client infrastructure and security week, 2026-10,
 3. Slide order
 4. Slide patterns
 5. Look and layout
+6. Team mode
 
 ## 1. Words on the slide
 
@@ -63,3 +64,14 @@ Cam removed these from the first deck, so do not add them:
 - Type scale: h2 64px, h3 28 to 32px, body 26 to 30px, eyebrow and footer 24px. Nothing under 24px.
 - Footer: "<client> · Week of <date> · <section>", pinned at bottom 64px.
 - Dense slides drop to 24 to 26px. Offer to split a slide rather than shrinking further.
+
+## 6. Team mode
+
+Same look and the same rules as above. These parts change:
+
+- **Cover:** "What the team shipped this week", with the team or project name.
+- **Credit:** name the person on each card or line ("Ana: restored the partner data feed"). Use "we" when no source names anyone. Never put a teammate's work under the user.
+- **Order:** headline wins first (3 or 4 cards), then one slide per theme (features, fixes, security, cost, platform), then risks or blockers, then next week, then the end slide.
+- **Next week:** group by theme or by person, whichever the team update uses.
+- **Evidence:** a claim from the team update with no matching commit, PR or ticket stays off the slides until the user confirms it. List those claims in the reply.
+- Leave out the user's own deep dives unless they asked for their part in the team deck.
