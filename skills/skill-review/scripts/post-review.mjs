@@ -107,20 +107,48 @@ function gh(args, input) {
   return r.stdout;
 }
 
+// A run costs a few GraphQL pages plus 2-3 REST calls; refuse to start below this many left,
+// so the post never fails halfway (see github-cli-rate-limits).
+const MIN_REMAINING = 20;
+
+export function rateLimitProblem(limits, now = Date.now()) {
+  for (const kind of ['graphql', 'core']) {
+    const r = limits.resources?.[kind];
+    if (r && r.remaining < MIN_REMAINING) {
+      const minutes = Math.max(1, Math.ceil((r.reset * 1000 - now) / 60000));
+      return `GitHub ${kind} rate limit low (${r.remaining} left); resets in about ${minutes} min. Nothing posted.`;
+    }
+  }
+  return null;
+}
+
+// Every review thread, page by page: dedupe must see all earlier skill-review comments.
 function fetchThreads(repo, pr) {
   const [owner, name] = repo.split('/');
-  const query = `query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved path comments(first:1){nodes{body}}}}}}}`;
-  const out = JSON.parse(gh(['api', 'graphql', '-F', `owner=${owner}`, '-F', `name=${name}`, '-F', `pr=${pr}`, '-f', `query=${query}`]));
-  return out.data.repository.pullRequest.reviewThreads.nodes.map((t) => ({
-    isResolved: t.isResolved,
-    path: t.path,
-    body: t.comments.nodes[0]?.body || '',
-  }));
+  const query = `query($owner:String!,$name:String!,$pr:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{isResolved path comments(first:1){nodes{body}}}}}}}`;
+  const threads = [];
+  let after = null;
+  do {
+    const args = ['api', 'graphql', '-F', `owner=${owner}`, '-F', `name=${name}`, '-F', `pr=${pr}`, '-f', `query=${query}`];
+    if (after) args.push('-f', `after=${after}`);
+    const page = JSON.parse(gh(args)).data.repository.pullRequest.reviewThreads;
+    for (const t of page.nodes) threads.push({ isResolved: t.isResolved, path: t.path, body: t.comments.nodes[0]?.body || '' });
+    after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+  } while (after);
+  return threads;
 }
 
 function fetchCommentable(repo, pr) {
   const files = JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${pr}/files?per_page=100`])).flat();
   return new Map(files.map((f) => [f.filename, commentableLines(f.patch)]));
+}
+
+// True when a skill-review summary already exists for this commit.
+export const hasSummaryFor = (reviews, commit) =>
+  reviews.some((r) => r.commit_id === commit && (r.body || '').includes(SUMMARY_MARKER));
+
+function fetchReviews(repo, pr) {
+  return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${pr}/reviews?per_page=100`])).flat();
 }
 
 function main(argv) {
@@ -139,11 +167,20 @@ function main(argv) {
   }
 
   try {
+    const limitProblem = rateLimitProblem(JSON.parse(gh(['api', 'rate_limit'])));
+    if (limitProblem) { console.error(limitProblem); return 1; }
+
     const result = plan(review.findings || [], fetchThreads(review.repo, review.pr), fetchCommentable(review.repo, review.pr));
     const payload = reviewPayload(review, result);
     const counts = `inline ${result.inline.length}, summary ${result.summary.length}, skipped ${result.skipped.length}`;
+    // A re-run with nothing new must not add a second summary review.
+    const nothingNew = !result.inline.length && !result.summary.length && hasSummaryFor(fetchReviews(review.repo, review.pr), review.commit);
     if (dryRun) {
-      console.log(JSON.stringify({ counts, payload, skipped: result.skipped }, null, 2));
+      console.log(JSON.stringify({ counts, nothingNew, payload, skipped: result.skipped }, null, 2));
+      return 0;
+    }
+    if (nothingNew) {
+      console.log(`nothing new to post: a skill-review summary already exists for ${review.commit.slice(0, 7)} (${counts})`);
       return 0;
     }
     const payloadFile = join(mkdtempSync(join(tmpdir(), 'skill-review-')), 'payload.json');

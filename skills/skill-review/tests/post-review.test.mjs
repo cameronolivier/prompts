@@ -1,6 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commentBody, commentableLines, invalidFindings, marker, plan, reviewPayload } from '../scripts/post-review.mjs';
+import { commentBody, commentableLines, hasSummaryFor, invalidFindings, marker, plan, rateLimitProblem, reviewPayload } from '../scripts/post-review.mjs';
+
+test('rateLimitProblem stops a run below the floor, with the reset time', () => {
+  const now = 1_000_000_000_000;
+  const ok = { resources: { graphql: { remaining: 4000, reset: 0 }, core: { remaining: 4000, reset: 0 } } };
+  assert.equal(rateLimitProblem(ok, now), null);
+  const low = { resources: { graphql: { remaining: 3, reset: now / 1000 + 600 }, core: { remaining: 4000, reset: 0 } } };
+  assert.equal(rateLimitProblem(low, now), 'GitHub graphql rate limit low (3 left); resets in about 10 min. Nothing posted.');
+});
+
+test('hasSummaryFor matches only a skill-review summary on the same commit', () => {
+  const sha = 'a'.repeat(40);
+  const summary = { commit_id: sha, body: 'x <!-- skill-review:summary -->' };
+  assert.equal(hasSummaryFor([summary], sha), true);
+  assert.equal(hasSummaryFor([{ ...summary, commit_id: 'b'.repeat(40) }], sha), false);
+  assert.equal(hasSummaryFor([{ commit_id: sha, body: 'human review' }], sha), false);
+});
 
 test('invalidFindings names each missing field', () => {
   const ok = { path: 'p', line: 3, rule: 'R', severity: 'should', title: 't', body: 'b' };
