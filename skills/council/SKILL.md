@@ -1,18 +1,16 @@
 ---
 name: council
 description: >
-  Run an idea, plan, or decision past a council of five independent advisors who each argue one
-  opposed angle in isolation, review each other's answers blind, and hand back
-  a verdict: where they agree, where they clash, what everyone missed, and what
-  to do first. Use when the user says "council this", "run the council",
-  "convene the council", "war room this", "pressure-test this", "stress-test
-  this idea", "debate this", "get multiple perspectives", "second opinions
-  on this", "what's weak about this", or invokes /council <idea> — and when they bring a real decision with
-  stakes and a tradeoff ("should I X or Y", "I'm torn between", "is this the
-  right move", "which of these options"). Not for factual lookups, creation
-  tasks ("write me…"), or summaries. Distinct from `clarify` and `grilling`,
-  which interview the user about their own plan; the council brings outside
-  opinions to it.
+  Pressure-tests a decision with several opposed advisors. Brings outside
+  opinions to a plan; `clarify` and `grilling` instead interview the user about
+  their own plan, so use those when the user wants to be questioned or to
+  stress-test their thinking. Use when the user says "council this", "run the
+  council", "convene the council", "war room this", "debate this", "get
+  multiple perspectives", "second opinions on this", "what's weak about this",
+  or invokes /council [idea], and when they bring a real decision with stakes
+  and a tradeoff ("should I X or Y", "I'm torn between", "is this the right
+  move", "which of these options"). Not for factual lookups, creation tasks
+  ("write me…"), or summaries.
 allowed-tools:
   - Workflow
   - Agent
