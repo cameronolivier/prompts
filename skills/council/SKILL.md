@@ -69,11 +69,11 @@ If the question is too vague to advise on ("council this: my business"), ask one
 
 ## 2. Convene
 
-Call the Workflow tool with the bundled script. It runs in the background and notifies you when done. Resolve the path against this skill's base directory.
+Call the Workflow tool with the bundled script. It runs in the background and notifies you when done.
 
 ```
 Workflow({
-  scriptPath: "<skill base directory>/scripts/council-workflow.js",
+  scriptPath: "${CLAUDE_SKILL_DIR}/scripts/council-workflow.js",
   args: {
     question: "<the user's question, verbatim>",
     context:  "<1-3 sentences + paths worth reading>",
