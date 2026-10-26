@@ -241,6 +241,14 @@ const tests = {
     assert.equal(result.council[0].model, 'opus')
     await assert.rejects(() => convene({ mode: 'quick' }), /question/)
   },
+
+  'mode is normalised and bad mode or members are rejected, not defaulted': async () => {
+    const { result } = await convene({ question: 'Ship it?', mode: ' Quick ' })
+    assert.equal(result.mode, 'quick')
+    await assert.rejects(() => convene({ question: 'Ship it?', mode: 'fast' }), /mode/)
+    await assert.rejects(() => convene({ question: 'Ship it?', members: [{ persona: 'Solo', brief: 'x' }] }), /members/)
+    await assert.rejects(() => convene({ question: 'Ship it?', members: 'The Skeptic' }), /members/)
+  },
 }
 
 let failureCount = 0

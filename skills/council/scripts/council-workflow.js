@@ -18,7 +18,8 @@ if (!input || typeof input !== 'object' || Array.isArray(input)) {
 }
 const question = input.question
 if (!question || typeof question !== 'string') throw new Error('args.question (string) is required')
-const mode = input.mode === 'quick' ? 'quick' : 'full'
+const mode = input.mode == null ? 'full' : String(input.mode).trim().toLowerCase()
+if (mode !== 'full' && mode !== 'quick') throw new Error(`args.mode must be "full" or "quick", got ${JSON.stringify(input.mode)}`)
 const contextBlock = input.context
   ? `\n\nCONTEXT (from the user's workspace and session):\n${input.context}`
   : ''
@@ -61,9 +62,10 @@ const DEFAULT_MEMBERS = [
   },
 ]
 
-const requestedMembers = Array.isArray(input.members) && input.members.length >= 2
-  ? input.members
-  : DEFAULT_MEMBERS
+if (input.members != null && !(Array.isArray(input.members) && input.members.length >= 2)) {
+  throw new Error('args.members must be an array of at least 2 seats; omit it for the default five')
+}
+const requestedMembers = input.members || DEFAULT_MEMBERS
 if (requestedMembers.length > LABELS.length) {
   log(`Council is capped at ${LABELS.length} seats; dropping ${requestedMembers.length - LABELS.length} member(s) from the end of the list`)
 }

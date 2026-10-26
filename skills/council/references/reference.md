@@ -17,9 +17,9 @@ Loaded on demand from `SKILL.md`. Covers optional arguments, the return shape, c
 |---|---|---|---|
 | `question` | yes | The user's question, verbatim | — |
 | `context` | no | 1–3 sentences plus paths. Never shown to `context: "none"` seats | none |
-| `mode` | no | `full` (opinions + blind review), `quick` (opinions only) | `full` |
+| `mode` | no | `full` (opinions + blind review), `quick` (opinions only). Case-insensitive; any other value is an error | `full` |
 | `model` | no | `opus`, `sonnet`, `haiku`, `fable`, or `inherit` (use the session's model) | `opus` |
-| `members` | no | 2–8 custom seats, see below. Extra seats are dropped and logged | the five default seats |
+| `members` | no | 2–8 custom seats, see below. Fewer than 2 is an error; extra seats are dropped and logged | the five default seats |
 
 `model` applies to every seat that does not set its own. Use `sonnet` when the user wants a cheaper run; expect shallower "what everyone missed" findings.
 
