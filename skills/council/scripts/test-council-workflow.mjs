@@ -44,7 +44,7 @@ const defaultReview = (validLabels) => ({
   missed_by_all: 'the competitor',
   ranking: validLabels,
 })
-const reviewCalls = (calls) => calls.filter((call) => call.options.phase === 'Peer Review')
+const reviewCalls = (calls) => calls.filter((call) => call.options.phase === 'Blind Review')
 const SECRET_CONTEXT = 'SECRET-CONTEXT read ./plan.md'
 
 const tests = {
@@ -205,7 +205,7 @@ const tests = {
     }
   },
 
-  'quick mode skips peer review': async () => {
+  'quick mode skips blind review': async () => {
     const { result, calls } = await convene({ question: 'Ship it?', mode: 'quick' })
     assert.equal(reviewCalls(calls).length, 0)
     assert.deepEqual(result.peer_reviews, [])

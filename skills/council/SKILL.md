@@ -27,7 +27,7 @@ model: opus
 
 One question to one model gives one answer and no way to judge it. The council gives five answers that were built to disagree, has them tear into each other without knowing who wrote what, and leaves you — the chairman — to rule.
 
-> **Recommended model: Opus** — the chairman's ruling is the judgment-heavy step. Advisors are dispatched on Opus by the script; pass `model` to change that.
+> **Recommended model: Opus** — the chairman's verdict is the judgment-heavy step. Advisors are dispatched on Opus by the script; pass `model` to change that.
 
 | Invocation (`$ARGUMENTS`) | Meaning |
 |---|---|
@@ -104,7 +104,7 @@ The script returns each advisor's stance, answer, assumptions, and the one thing
 ## Council verdict: {short topic}
 
 **Recommendation:** {One direct answer. Not "it depends".}
-**Confidence:** {high / medium / low} — {what would change this ruling}
+**Confidence:** {high / medium / low} — {what would change this verdict}
 
 ### Do this first
 {One concrete step. Not a list.}
@@ -116,13 +116,13 @@ The script returns each advisor's stance, answer, assumptions, and the one thing
 {The real disagreements, both sides, and what evidence would settle each.}
 
 ### What everyone missed
-{From peer review. If two reviewers named the same gap independently, lead with it.}
+{From blind review. If two reviewers named the same gap independently, lead with it.}
 
 | Advisor | Stance | Peer rank |
 |---|---|---|
 ```
 
-Rules for the ruling:
+Rules for the verdict:
 
 - **Name the lens behind each point** — "the Outsider could not tell what the product does". The user should see which angle produced which insight.
 - **The rank is not a vote.** It measures how well each advisor argued its lens (self-votes removed), not whose advice to follow. A low-ranked Skeptic may still be right. Say this if you show the table; drop the rank column in quick mode.
@@ -139,7 +139,7 @@ Save one only if asked, or the decision is one the user will want to revisit. Wr
 
 ## Failure handling
 
-- Peer review returned nothing → rule from opinions alone and say the blind review did not run.
+- Blind review returned nothing → rule from opinions alone and say the blind review did not run.
 - Whole workflow failed → say so, show the error, and offer the hand-run fallback or a single-perspective analysis. Do not present a solo analysis as a council.
 
 ## Related

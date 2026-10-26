@@ -57,7 +57,7 @@ Loaded on demand from `SKILL.md`. Covers optional arguments, the return shape, c
 
 `average_rank` is lower-is-better and is computed with each reviewer's vote for their own answer removed. `isolation: "prompt-only"` means the isolated agent type was unavailable, so that seat ran as a normal agent and may have seen CLAUDE.md.
 
-Where to look when ruling:
+Where to look when writing the verdict:
 
 - **Clashes** → compare `stance` across seats, then read `core_disagreement` — reviewers have already named what evidence would settle it.
 - **What everyone missed** → `missed_by_all`. A gap named by two reviewers independently outweighs anything a single advisor said.
