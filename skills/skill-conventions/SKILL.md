@@ -1,6 +1,6 @@
 ---
 name: skill-conventions
-description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use whenever creating a new skill, editing a SKILL.md, reviewing skill structure, or deciding where repeated logic should live.
+description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use whenever creating a new skill, editing a SKILL.md, or deciding where repeated logic should live. To review a skill PR, use `skill-review`, which applies these rules.
 allowed-tools:
   - Read
   - Write
@@ -12,7 +12,7 @@ model: haiku
 
 > **Recommended model: Haiku** — house-style reference, applied as a checklist. The skill being authored is what may need a heavier model; this layer is just rules.
 
-Personal layer on top of generic skill-writing skills. Those teach structure; this encodes the house style that's been learned the hard way.
+Personal layer on top of generic skill-writing skills. Those teach structure; this encodes the house style.
 
 ## 1. Scope `allowed-tools` tightly
 
@@ -30,7 +30,7 @@ allowed-tools:
   - Bash(jq:*)
 ```
 
-Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`.
+Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`. Exception: a bundled script is pre-approved as the exact string SKILL.md runs (`Bash(node ${CLAUDE_SKILL_DIR}/scripts/x.mjs *)`, see §2).
 
 **Why:** bare `Bash` auto-approves `rm -rf`, `gh auth logout`, anything. Scoped permissions keep blast radius to what the skill actually needs.
 
@@ -60,7 +60,7 @@ Skills that need stable per-repo data (project IDs, field IDs, external system c
 
 - `.github/project.yml` for GitHub project config
 - `.claude/<skill>.yml` for other skill-specific state
-- The skill provides a `bootstrap.sh` that writes this file once per repo
+- The skill provides a `bootstrap.mjs` that writes this file once per repo
 - The skill's main script(s) read it on every invocation
 
 **Why:** lookups in a loop burn API budget and make routine operations slow. A committed file survives across agents, machines, and teammates. Memory is invisible and per-project; CLAUDE.md is loaded always and costs tokens in every unrelated session.
@@ -77,7 +77,7 @@ Skills that hit rate-limited APIs (GitHub especially) must:
 
 If the skill's purpose touches the GitHub CLI, cross-reference the `github-cli-rate-limits` skill so agents pick up the discipline.
 
-**Why:** the GraphQL budget exhausts quickly and locks out for ~1hr. This is a recurring pain, not hypothetical.
+**Why:** the GraphQL budget exhausts quickly and locks out for ~1hr.
 
 ## 5. Composability over self-containment
 
@@ -118,7 +118,7 @@ Picking the right model:
 
 For dispatched subagents within the skill (Agent tool calls), pass `model:` per dispatch — the same alias values. Orchestrator calls (loop + parse `STATUS:`/`COMMITS:` lines) are almost always `haiku`; the worker takes the substantive model.
 
-**Don't infer from precedent.** The docs are authoritative — when in doubt about whether a frontmatter field is supported, fetch [https://code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) directly. Treating a feature as "probably unsupported" because it isn't in a third-party guide is how you leave money on the table.
+**Don't infer from precedent.** The docs are authoritative — when in doubt about whether a frontmatter field is supported, fetch [https://code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) directly, rather than treating a feature as unsupported because a third-party guide leaves it out.
 
 ## 8. Don't duplicate existing skills
 
@@ -128,7 +128,7 @@ Before creating a skill, check the installed list for overlap. Prefer:
 - **Composing** via cross-references if it's a layer (like this skill composes with `write-a-skill`)
 - **Creating new** only when the scope is genuinely distinct
 
-The prompts repo has many skill-writing skills already. This one exists only because "house style" is a distinct layer from "how to structure a skill".
+This skill exists only because "house style" is a distinct layer from "how to structure a skill".
 
 ## 9. Length: under 500 lines, front-load for compaction
 
@@ -149,7 +149,7 @@ Sources: <https://code.claude.com/docs/en/skills> and <https://platform.claude.c
 - [ ] `model:` set in frontmatter (haiku/sonnet/opus) — match cost to work
 - [ ] Per-dispatch `model:` set on every internal `Agent` tool call
 - [ ] Repeated bash >20 lines → extracted to `scripts/`
-- [ ] Scripts `chmod +x` and `bash -n` clean
+- [ ] Scripts `chmod +x` and syntax-checked (`node --check`, `bash -n`); new ones in Node
 - [ ] No reliance on CLAUDE.md / memory for per-repo data
 - [ ] External API usage is cached + rate-limit-aware
 - [ ] Description has concrete trigger phrases
