@@ -71,12 +71,17 @@ async function main(argv) {
   }
 
   const report = results.map(({ id, layer, url, status, detail }) => ({ id, layer, url, status, ...(detail && { detail }) }));
+  const unreachable = report.filter((r) => r.status === 'unreachable');
   if (json) console.log(JSON.stringify({ drift: drift.length > 0, sources: report }, null, 2));
-  else if (write) console.log(`stored hashes for ${results.filter((r) => r.current).length} of ${results.length} sources in ${sourcesPath}`);
-  else if (!drift.length) console.log(`best-practice sources up to date (${results.length} checked)`);
+  else if (write) {
+    console.log(`stored hashes for ${results.length - unreachable.length} of ${results.length} sources in ${sourcesPath}`);
+    // A source that could not be read keeps its old hash; say so and fail, so the update does not ship as complete.
+    if (unreachable.length) console.error(`not stored (unreachable): ${unreachable.map((r) => `${r.id} (${r.detail})`).join(', ')}`);
+  } else if (!drift.length) console.log(`best-practice sources up to date (${results.length} checked)`);
   else for (const r of report.filter((x) => x.status !== 'unchanged')) console.log(`${r.status.padEnd(11)} ${r.id}  ${r.url}${r.detail ? `  (${r.detail})` : ''}`);
 
-  return write ? 0 : drift.length ? 1 : 0;
+  if (write) return unreachable.length ? 1 : 0;
+  return drift.length ? 1 : 0;
 }
 
 const isMain = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));

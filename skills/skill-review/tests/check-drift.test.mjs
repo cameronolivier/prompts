@@ -75,6 +75,13 @@ test('CLI against a local server: new → write → unchanged → changed → un
     assert.equal(byId.b.detail, 'HTTP 404');
     assert.equal(readFileSync(join(save, 'a.md'), 'utf8'), 'alpha v2');
     assert.equal(existsSync(join(save, 'b.md')), false);
+
+    // --write with an unreachable source stores the rest but exits 1.
+    const before = JSON.parse(readFileSync(sources, 'utf8')).sources.find((s) => s.id === 'b').hash;
+    assert.equal((await run('--write')).code, 1);
+    const after = JSON.parse(readFileSync(sources, 'utf8')).sources;
+    assert.equal(after.find((s) => s.id === 'b').hash, before);
+    assert.equal((await run()).code, 1);
   } finally {
     server.close();
   }
