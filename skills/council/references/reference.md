@@ -110,7 +110,7 @@ Same protocol, by hand, using the Agent tool. Pass `model: "opus"` on every disp
 ## Testing the script
 
 ```
-node scripts/test-council-workflow.mjs
+node ${CLAUDE_SKILL_DIR}/scripts/test-council-workflow.mjs
 ```
 
 Runs `council-workflow.js` against a fake Workflow runtime — no agents, no tokens. It checks that the Outsider never receives context, letters are shuffled and stable, persona names are stripped from review packets, self-votes are excluded, malformed rankings are cleaned, quick mode skips review, and failed seats are reported. Run it after any edit to the script.
