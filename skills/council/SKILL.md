@@ -17,7 +17,6 @@ allowed-tools:
   - Read
   - Glob
   - Grep
-  - Write
   - AskUserQuestion
   - Bash(TZ=Africa/Johannesburg date:*)
 argument-hint: "[quick] <idea, plan, or decision — or a file path>"
