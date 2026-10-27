@@ -25,7 +25,7 @@ Fill every slot before dispatch. A prompt with a `{…}` left in it is not sent.
 | `{SKILL_DIRS}` | the `dir` of every skill in `pregate.json`, comma-separated |
 | `{PREGATE_JSON}` | `<scratchpad>/pregate.json` |
 | `{DIFF_FILE}` | `<scratchpad>/pr-<n>.diff`, or `none` in path mode |
-| `{BASELINES}` | conventions: the skill-conventions path. best-practice: the best-practice.md path. scripts: this file (`CR` list) plus the skill-conventions path. language: the voice-rules path (or voice-fallback.md). overlap and security: this file (`OV` or `SEC` list) |
+| `{BASELINES}` | conventions: the skill-conventions path (or conventions-fallback.md). best-practice: the best-practice.md path. scripts: this file (`CR` list) plus the skill-conventions path (or conventions-fallback.md). language: the voice-rules path (or voice-fallback.md). overlap and security: this file (`OV` or `SEC` list) |
 
 ## Shared prompt
 

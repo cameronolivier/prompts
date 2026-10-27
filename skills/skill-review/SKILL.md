@@ -15,6 +15,8 @@ allowed-tools:
   - Bash(git rev-parse:*)
   - Bash(git worktree add --detach:*)
 model: opus
+metadata:
+  requires: skill-conventions voice-rules
 ---
 
 # Skill review
@@ -55,7 +57,7 @@ Parse `$ARGUMENTS`. Free text maps to the same modes.
 
 | Rule IDs | Baseline | Where |
 |---|---|---|
-| `SC-n` | skill-conventions, section n | `${CLAUDE_SKILL_DIR}/../skill-conventions/SKILL.md`; if absent, invoke the `skill-conventions` skill and save its text to the scratchpad |
+| `SC-n` | skill-conventions, section n | `${CLAUDE_SKILL_DIR}/../skill-conventions/SKILL.md`; if absent, [conventions-fallback.md](conventions-fallback.md), and say so in the report |
 | `BP-A…`, `BP-S…`, `BP-X…` | Anthropic docs, Agent Skills spec, extras | [best-practice.md](best-practice.md) |
 | `A…`, `H…` | voice-rules | `${CLAUDE_SKILL_DIR}/../voice-rules/SKILL.md`; if absent, [voice-fallback.md](voice-fallback.md), and say so in the report |
 | `CR-n`, `SEC-n`, `OV-n` | script, security and overlap rules | [reviewers.md](reviewers.md) |
@@ -94,9 +96,9 @@ Done when `pregate.json` parses. With no skills, report the skipped list, say no
 
 ### 3. Baselines
 
-Resolve the four rows of the Baselines table to readable file paths.
+Resolve the four rows of the Baselines table to readable file paths. A row with neither its skill nor its fallback file readable: mark that reviewer "not reviewed (baseline missing)" and skip it in Step 4.
 
-Done when every row has a readable path or a recorded fallback, which the report names.
+Done when every row has a readable path, a recorded fallback, or a "not reviewed" mark, and the report names each fallback and mark.
 
 ### 4. Reviewers
 
