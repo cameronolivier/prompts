@@ -205,9 +205,28 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Skills a skill needs beside it: `metadata.requires` in its SKILL.md frontmatter, space-separated.
+skill_requires() {
+    awk '
+        /^---$/ { fm++; next }
+        fm != 1 { next }
+        /^metadata:/ { meta = 1; next }
+        meta && /^[^ ]/ { meta = 0 }
+        meta && /^  requires:/ { sub(/^  requires:[[:space:]]*/, ""); gsub(/["\047]/, ""); print; exit }
+    ' "$REPO_SKILLS/$1/SKILL.md" 2>/dev/null
+}
+
 # Execute
+INSTALLED=" "
 install_one_skill() {
     local name="$1"
+    [[ "$INSTALLED" == *" $name "* ]] && return 0
+    INSTALLED+="$name "
+    local dep
+    for dep in $(skill_requires "$name"); do
+        echo -e "${CYAN}  $name requires $dep${NC}"
+        install_one_skill "$dep"
+    done
     case "$SKILL_METHOD" in
         symlink) install_skill_symlink "$name" ;;
         moai)    install_skill_moai "$name" ;;
