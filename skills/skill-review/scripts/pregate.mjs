@@ -31,7 +31,30 @@ const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SKILL_FILES = ['SKILL.md', 'skill.md'];
 // skills-ref validate parses YAML strictly and enforces the portable-field allowlist (BP-S8).
 const SKILLS_REF_UNCHECKED = ['BP-S12', 'BP-S8'];
-const SKILLS_REF_INSTALL = 'pipx install skills-ref';
+const SKILLS_REF_INSTALL = 'uv tool install skills-ref';
+// Built from source the validator is `skills-ref`; the PyPI package (0.1.1) installs it as `agentskills`.
+const SKILLS_REF_COMMANDS = ['skills-ref', 'agentskills'];
+
+/**
+ * The validator's problems that a Claude Code skill must fix. The validator allows only the
+ * portable spec fields, so it rejects every Claude Code field (`model`, `effort`, ...). Those are
+ * valid here, and BP-S8 judges portability, so they are returned as `ignored`, not as problems.
+ */
+export function skillsRefProblems(out) {
+  const problems = [];
+  const ignored = [];
+  for (const raw of out.split('\n')) {
+    const line = raw.trim().replace(/^-\s*/, '');
+    if (!line || line.startsWith('Validation failed for ')) continue;
+    const unexpected = line.match(/^Unexpected fields in frontmatter: (.+?)\. Only \[/);
+    if (!unexpected) { problems.push(line); continue; }
+    const fields = unexpected[1].split(',').map((f) => f.trim());
+    ignored.push(...fields.filter((f) => KNOWN_FIELDS.has(f)));
+    const unknown = fields.filter((f) => !KNOWN_FIELDS.has(f));
+    if (unknown.length) problems.push(`Unexpected fields in frontmatter: ${unknown.join(', ')}`);
+  }
+  return { problems, ignored };
+}
 
 // --- frontmatter -------------------------------------------------------------
 
@@ -215,7 +238,7 @@ export function voiceLintPath() {
 export const isTestFile = (path) =>
   /(^|\/)tests?\//.test(path) || /(^|\/)(test-[^/]+|[^/]+\.(test|spec))\.[cm]?[jt]s$/.test(path) || /(^|\/)(test_[^/]+|[^/]+_test)\.py$/.test(path);
 
-export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
+export function checkSkill(root, dir, { voiceLint = voiceLintPath(), skillsRefCommands = SKILLS_REF_COMMANDS } = {}) {
   const abs = join(root, dir);
   const file = skillFileIn(abs);
   const rel = (p) => relative(root, p);
@@ -399,10 +422,14 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
 
   // Agent Skills reference validator, when installed
   let skillsRef = { ran: false, reason: 'skills-ref not installed', unchecked: SKILLS_REF_UNCHECKED, install: SKILLS_REF_INSTALL };
-  const sr = run('skills-ref', ['validate', abs]);
-  if (!sr.missing) {
-    skillsRef = { ran: true, ok: sr.ok };
-    if (!sr.ok) add('skills-ref', 'must', skillPath, 1, sr.out.split('\n').slice(0, 5).join(' | '), 'BP-S12');
+  for (const cmd of skillsRefCommands) {
+    const sr = run(cmd, ['validate', abs]);
+    if (sr.missing) continue;
+    const { problems, ignored } = sr.ok ? { problems: [], ignored: [] } : skillsRefProblems(sr.out);
+    skillsRef = { ran: true, ok: problems.length === 0, command: basename(cmd), ...(ignored.length ? { ignored } : {}) };
+    // BP-S12 is a note in best-practice.md: the validator is stricter than Claude Code.
+    if (problems.length) add('skills-ref', 'note', skillPath, 1, problems.slice(0, 5).join(' | '), 'BP-S12');
+    break;
   }
 
   return {
