@@ -35,7 +35,7 @@ Draft or take a skill, compress it, review it, fix it, and prove the compressed 
 ## Requirements
 
 | Skill | Role | Need |
-|---|---|---|
+| --- | --- | --- |
 | `skill-review` | review and fix loop (Steps 4–5) | required |
 | `voice-rules` | A-set rules for compression (Step 3) | required |
 | `skill-conventions` | house rules (SC-n) for drafting and fixes | required |
@@ -46,7 +46,7 @@ Node 18 or later runs the bundled scripts.
 ## Modes
 
 | Input | Mode |
-|---|---|
+| --- | --- |
 | a folder with `SKILL.md` | improve: Steps 0, 2–7 |
 | a description, or "make a skill for X" | new: Steps 0–7 |
 | nothing | ask which skill, or what the new one does |
@@ -92,7 +92,7 @@ Done when the snapshot, `before.json` and at least three scenarios exist.
 Read `voice-rules` (agent rules A1–A12). Work through `SKILL.md` and every agent-read reference file, paragraph by paragraph:
 
 | Pass | Rule | Action |
-|---|---|---|
+| --- | --- | --- |
 | no-ops | A9 | Delete each sentence the model obeys by default. Whole sentences only. |
 | duplicates | A8 | Keep each meaning in one place; replace a restatement with a pointer. |
 | triads | A5 | Collapse a behaviour restated at several sites into one leading word. |
