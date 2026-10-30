@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { checkSkill, findSkills, isTestFile, parseFrontmatter, unclaimed } from '../scripts/pregate.mjs';
+import { checkSkill, findSkills, isTestFile, parseFrontmatter, skillsRefProblems, unclaimed } from '../scripts/pregate.mjs';
 
 function tree(files) {
   const root = mkdtempSync(join(tmpdir(), 'pregate-'));
@@ -28,7 +28,8 @@ Run \`node \${CLAUDE_SKILL_DIR}/scripts/run.mjs\`. See [reference](reference.md)
 `;
 
 const checks = (result) => result.findings.map((f) => `${f.severity}:${f.check}`).sort();
-const noVoice = { voiceLint: null };
+// No voice-lint and no skills-ref, so results do not depend on what this machine has installed.
+const noVoice = { voiceLint: null, skillsRefCommands: [] };
 
 test('parseFrontmatter: scalars, lists, block scalars, inline lists', () => {
   const { data, error } = parseFrontmatter('---\nname: x\ndescription: >\n  one\n  two\nallowed-tools:\n  - Read\n  - Bash(gh:*)\npaths: [a, "b"]\n---\nbody');
@@ -164,12 +165,48 @@ test('a changed path no skill read goes to skipped', () => {
   assert.deepEqual(skipped.map((s) => s.path), ['README.md', 'skills/h/.env']);
 });
 
-test('skills-ref not run names the unchecked rules and the install command', () => {
+// A stand-in validator: prints `out` and exits with `code`, so no test depends on what is installed.
+function fakeValidator(name, out, code) {
+  const path = join(mkdtempSync(join(tmpdir(), 'skills-ref-')), name);
+  writeFileSync(path, `#!/bin/sh\ncat <<'EOF'\n${out}\nEOF\nexit ${code}\n`);
+  chmodSync(path, 0o755);
+  return path;
+}
+const MISSING = join(tmpdir(), 'no-such-skills-ref-command');
+
+test('skills-ref not installed names the unchecked rules and the install command', () => {
   const root = tree({ 'skills/r/SKILL.md': GOOD });
-  const { skillsRef } = checkSkill(root, 'skills/r', noVoice);
-  if (skillsRef.ran) return;
+  const { skillsRef } = checkSkill(root, 'skills/r', { ...noVoice, skillsRefCommands: [MISSING] });
+  assert.equal(skillsRef.ran, false);
   assert.deepEqual(skillsRef.unchecked, ['BP-S12', 'BP-S8']);
-  assert.match(skillsRef.install, /skills-ref/);
+  assert.equal(skillsRef.install, 'uv tool install skills-ref');
+});
+
+test('skills-ref falls back to the agentskills command, and Claude Code fields are not a finding', () => {
+  const root = tree({ 'skills/r/SKILL.md': GOOD });
+  const agentskills = fakeValidator('agentskills', "Validation failed for x:\n  - Unexpected fields in frontmatter: argument-hint, model. Only ['allowed-tools', 'name'] are allowed.", 1);
+  const result = checkSkill(root, 'skills/r', { ...noVoice, skillsRefCommands: [MISSING, agentskills] });
+  assert.deepEqual(result.skillsRef, { ran: true, ok: true, command: 'agentskills', ignored: ['argument-hint', 'model'] });
+  assert.equal(result.findings.filter((f) => f.rule === 'BP-S12').length, 0);
+});
+
+test('a real skills-ref failure is a BP-S12 note, and an unknown field stays in it', () => {
+  const root = tree({ 'skills/r/SKILL.md': GOOD });
+  const bad = fakeValidator('skills-ref', "Validation failed for x:\n  - Unexpected fields in frontmatter: model, colour. Only ['name'] are allowed.\n  - Invalid YAML in frontmatter", 1);
+  const { skillsRef, findings } = checkSkill(root, 'skills/r', { ...noVoice, skillsRefCommands: [bad] });
+  assert.equal(skillsRef.ok, false);
+  const f = findings.find((x) => x.rule === 'BP-S12');
+  assert.equal(f.severity, 'note');
+  assert.match(f.body, /colour/);
+  assert.doesNotMatch(f.body, /model/);
+  assert.match(f.body, /Invalid YAML/);
+});
+
+test('skillsRefProblems keeps only what a Claude Code skill must fix', () => {
+  assert.deepEqual(
+    skillsRefProblems('Validation failed for x:\n  - Unexpected fields in frontmatter: effort, hooks. Only [] are allowed.'),
+    { problems: [], ignored: ['effort', 'hooks'] },
+  );
 });
 
 test('voice-lint findings are folded in with their voice-rules ID', () => {
