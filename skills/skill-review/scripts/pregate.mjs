@@ -29,6 +29,9 @@ const KNOWN_FIELDS = new Set([
 const MODELS = /^(haiku|sonnet|opus|fable|inherit|default|claude-[a-z0-9.-]+)(\[1m\])?$/;
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SKILL_FILES = ['SKILL.md', 'skill.md'];
+// skills-ref validate parses YAML strictly and enforces the portable-field allowlist (BP-S8).
+const SKILLS_REF_UNCHECKED = ['BP-S12', 'BP-S8'];
+const SKILLS_REF_INSTALL = 'pipx install skills-ref';
 
 // --- frontmatter -------------------------------------------------------------
 
@@ -113,6 +116,51 @@ function skillFileIn(dir) {
   return null;
 }
 
+const subdirs = (root, dir) => {
+  const abs = join(root, dir);
+  if (!existsSync(abs) || !statSync(abs).isDirectory()) return [];
+  return readdirSync(abs, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.isSymbolicLink() && !e.name.startsWith('.'))
+    .map((e) => join(dir, e.name));
+};
+
+// Evals can sit outside the skill folder: <plugin>/evals/<skill-name>* for a skill in <plugin>/skills/,
+// and <repo>/evals/<skill-name>*. An entry names a skill when it equals the name or continues with - _ or .
+const namesSkill = (entry, name) => entry === name || (entry.startsWith(name) && /^[-_.]/.test(entry.slice(name.length)));
+
+function evalFoldersFor(dir) {
+  const parent = dirname(dir);
+  const folders = basename(parent) === 'skills' ? [join(dirname(parent), 'evals')] : [];
+  return [...new Set([...folders, 'evals'])];
+}
+
+// The skill an entry of an evals/ folder belongs to: the longest skill name it starts with, so
+// document-checks-x goes to document-checks, not to document.
+export function evalOwner(root, evalsDir, entry) {
+  const base = dirname(evalsDir);
+  const parents = [join(base, 'skills')];
+  if (base === '.') parents.push(...subdirs(root, 'plugins').map((p) => join(p, 'skills')));
+  return parents
+    .flatMap((p) => subdirs(root, p))
+    .filter((d) => skillFileIn(join(root, d)) && namesSkill(entry, basename(d)))
+    .sort((a, b) => basename(b).length - basename(a).length)[0] || null;
+}
+
+// Eval files outside the skill folder that belong to the skill. Symlinks go to `links`, unread.
+export function externalEvals(root, dir, links = []) {
+  const out = [];
+  for (const evalsDir of evalFoldersFor(dir)) {
+    for (const e of existsSync(join(root, evalsDir)) ? readdirSync(join(root, evalsDir), { withFileTypes: true }) : []) {
+      if (evalOwner(root, evalsDir, e.name) !== dir) continue;
+      const p = join(root, evalsDir, e.name);
+      if (e.isSymbolicLink()) links.push(p);
+      else out.push(...(e.isDirectory() ? walk(p, links) : [p]));
+    }
+  }
+  return out;
+}
+
+// Every changed path ends up in a skill or in `skipped` with a reason. None is dropped.
 export function findSkills(root, changed) {
   const skills = new Set();
   const skipped = [];
@@ -123,10 +171,15 @@ export function findSkills(root, changed) {
       if (skillFileIn(join(root, dir))) { found = dir; break; }
       dir = dirname(dir);
     }
+    const segs = path.split('/');
+    const at = segs.indexOf('evals');
+    if (!found && at >= 0 && at < segs.length - 1) found = evalOwner(root, segs.slice(0, at + 1).join('/'), segs[at + 1]);
     if (found) { skills.add(found); continue; }
-    if (SKILL_FILES.includes(basename(path))) { skipped.push({ path, reason: 'skill deleted in this change' }); continue; }
-    if (/(^|\/)commands\/[^/]+\.md$/.test(path)) skipped.push({ path, reason: 'command: out of scope in v1' });
+    if (SKILL_FILES.includes(basename(path))) skipped.push({ path, reason: 'skill deleted in this change' });
+    else if (/(^|\/)commands\/[^/]+\.md$/.test(path)) skipped.push({ path, reason: 'command: out of scope in v1' });
     else if (/(^|\/)agents\/[^/]+\.md$/.test(path)) skipped.push({ path, reason: 'agent: out of scope in v1' });
+    else if (at >= 0) skipped.push({ path, reason: 'eval that names no skill in the tree: not reviewed' });
+    else skipped.push({ path, reason: 'not part of any skill: not reviewed' });
   }
   return { skills: [...skills].sort(), skipped };
 }
@@ -175,12 +228,14 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
 
   const links = [];
   const files = walk(abs, links);
+  const outside = externalEvals(root, dir, links);
+  const evals = [...files.filter((p) => relative(abs, p).startsWith('evals/')), ...outside];
   for (const link of links.filter((l) => l !== join(abs, file))) {
     add('symlink', 'should', rel(link), 1, 'Symlink in the skill folder. The pre-gate does not follow it; ship the file itself, or a symlink can expose files outside the skill.', 'SEC-5');
   }
   if (lstatSync(join(abs, file)).isSymbolicLink()) {
     add('symlink', 'must', skillPath, 1, `${file} is a symlink. Not read; ship the file itself.`, 'SEC-5');
-    return { dir, skillFile: skillPath, frontmatter: {}, bodyLines: 0, approxTokens: 0, files: files.map(rel).sort(), symlinks: links.map(rel).sort(), voice: { ran: false, reason: 'skill file is a symlink' }, skillsRef: { ran: false, reason: 'skill file is a symlink' }, findings };
+    return { dir, skillFile: skillPath, frontmatter: {}, bodyLines: 0, approxTokens: 0, files: files.map(rel).sort(), evals: evals.map(rel).sort(), symlinks: links.map(rel).sort(), voice: { ran: false, reason: 'skill file is a symlink' }, skillsRef: { ran: false, reason: 'skill file is a symlink', unchecked: SKILLS_REF_UNCHECKED }, findings };
   }
 
   if (file === 'skill.md') {
@@ -308,8 +363,8 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
     }
   }
 
-  // scripts
-  for (const script of files.filter((p) => /\.(sh|bash|mjs|cjs|js|py)$/.test(p) && !/(^|\/)tests?\//.test(relative(abs, p)))) {
+  // scripts, including eval scripts outside the skill folder (scaffold.sh)
+  for (const script of [...files, ...outside].filter((p) => /\.(sh|bash|mjs|cjs|js|py)$/.test(p) && !/(^|\/)tests?\//.test(relative(abs, p)))) {
     const path = rel(script);
     const src = readFileSync(script, 'utf8');
     const hasShebang = src.startsWith('#!');
@@ -343,7 +398,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
   }
 
   // Agent Skills reference validator, when installed
-  let skillsRef = { ran: false, reason: 'skills-ref not installed' };
+  let skillsRef = { ran: false, reason: 'skills-ref not installed', unchecked: SKILLS_REF_UNCHECKED, install: SKILLS_REF_INSTALL };
   const sr = run('skills-ref', ['validate', abs]);
   if (!sr.missing) {
     skillsRef = { ran: true, ok: sr.ok };
@@ -357,6 +412,7 @@ export function checkSkill(root, dir, { voiceLint = voiceLintPath() } = {}) {
     bodyLines,
     approxTokens: tokens,
     files: files.map(rel).sort(),
+    evals: evals.map(rel).sort(),
     symlinks: links.map(rel).sort(),
     voice,
     skillsRef,
@@ -381,19 +437,20 @@ function main(argv) {
     return 2;
   }
   root = resolve(root);
-  let skipped = [];
-  let skillDirs = dirs.map((d) => relative(root, resolve(root, d)));
-  if (changedFile) {
-    const changed = readFileSync(changedFile, 'utf8').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-    const found = findSkills(root, changed);
-    skillDirs = [...new Set([...skillDirs, ...found.skills])];
-    skipped = found.skipped;
-  }
+  const changed = changedFile ? readFileSync(changedFile, 'utf8').split(/\r?\n/).map((s) => s.trim()).filter(Boolean) : [];
+  const found = findSkills(root, changed);
+  const skillDirs = [...new Set([...dirs.map((d) => relative(root, resolve(root, d))), ...found.skills])];
   const missing = skillDirs.filter((d) => !existsSync(join(root, d)) || !skillFileIn(join(root, d)));
   const skills = skillDirs.filter((d) => !missing.includes(d)).map((d) => checkSkill(root, d));
-  for (const d of missing) skipped.push({ path: d, reason: 'no SKILL.md in folder' });
-  console.log(JSON.stringify({ root, skills, skipped }, null, 2));
+  const skipped = [...found.skipped, ...missing.map((d) => ({ path: d, reason: 'no SKILL.md in folder' }))];
+  console.log(JSON.stringify({ root, skills, skipped: unclaimed(skills, changed, skipped) }, null, 2));
   return 0;
+}
+
+// A changed path the walk never reached (a dotfile, node_modules, a removed file) still goes to skipped.
+export function unclaimed(skills, changed, skipped) {
+  const seen = new Set([...skipped.map((s) => s.path), ...skills.flatMap((s) => [s.skillFile, ...s.files, ...s.evals, ...s.symlinks])]);
+  return [...skipped, ...changed.filter((p) => !seen.has(p)).map((path) => ({ path, reason: 'not read by the pre-gate (hidden, ignored or removed): not reviewed' }))];
 }
 
 const isMain = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));

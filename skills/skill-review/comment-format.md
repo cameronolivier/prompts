@@ -10,8 +10,9 @@ What a person sees: the chat report, the posted summary and the inline comments.
 **Verdict:** changes needed | worth fixing | no material findings
 <one sentence: what the change does and the main risk, if any>
 
-Reviewed: <skill folders>. Skipped: <path (reason)>, if any.
+Reviewed: <skill folders>, with <n> eval files.
 Baselines: skill-conventions, best-practice.md (distilled <date>), voice-rules<, fallback snapshot if used>.
+Not checked: BP-S12, BP-S8 (skills-ref not installed: `pipx install skills-ref`), if skills-ref did not run.
 
 ### Must fix
 | Where | Rule | Finding | Breaks |
@@ -29,9 +30,12 @@ Baselines: skill-conventions, best-practice.md (distilled <date>), voice-rules<,
 
 ### Dropped
 - <title>: missing <location | rule | breaks>, or <the reason verification dropped it>.
+
+### Skipped
+- <reason>: `path`, `path`
 ```
 
-Omit an empty section. With no findings at all, the report is the heading, the verdict and the Reviewed line. "Already raised" appears only on a PR with earlier skill-review threads. "Dropped" lists every finding the evidence contract or verification removed, so a person can overrule the filter.
+Omit an empty section. With no findings at all, the report is the heading, the verdict, the Reviewed line, and the Not checked line and Skipped section when they have content. "Already raised" appears only on a PR with earlier skill-review threads. "Dropped" lists every finding the evidence contract or verification removed, so a person can overrule the filter. "Skipped" lists every changed file that no skill claims, so no part of the change goes unreported.
 
 ## Posted review
 

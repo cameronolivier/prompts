@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { checkSkill, findSkills, isTestFile, parseFrontmatter } from '../scripts/pregate.mjs';
+import { checkSkill, findSkills, isTestFile, parseFrontmatter, unclaimed } from '../scripts/pregate.mjs';
 
 function tree(files) {
   const root = mkdtempSync(join(tmpdir(), 'pregate-'));
@@ -117,7 +117,59 @@ test('findSkills maps changed paths to skill folders and names what it skips', (
     'skill deleted in this change',
     'command: out of scope in v1',
     'agent: out of scope in v1',
+    'not part of any skill: not reviewed',
   ]);
+});
+
+test('plugin-level and repo-level evals attach to the skill they name, longest name first', () => {
+  const root = tree({
+    'plugins/p/skills/document-checks/SKILL.md': GOOD,
+    'plugins/p/skills/document/SKILL.md': GOOD,
+    'plugins/p/evals/document-checks-basic/case.yaml': 'x: 1\n',
+    'plugins/p/evals/document-checks-basic/scaffold.sh': '#!/usr/bin/env bash\nif then fi\n',
+    'plugins/p/evals/document-checks-basic/graders/g.md': '# g\n',
+    'plugins/p/evals/orphan-x/case.yaml': '',
+    'evals/document-checks.md': '',
+  });
+  const { skills, skipped } = findSkills(root, [
+    'plugins/p/evals/document-checks-basic/case.yaml',
+    'plugins/p/evals/document-checks-basic/scaffold.sh',
+    'plugins/p/evals/orphan-x/case.yaml',
+    'evals/document-checks.md',
+  ]);
+  assert.deepEqual(skills, ['plugins/p/skills/document-checks']);
+  assert.deepEqual(skipped, [{ path: 'plugins/p/evals/orphan-x/case.yaml', reason: 'eval that names no skill in the tree: not reviewed' }]);
+
+  const result = checkSkill(root, 'plugins/p/skills/document-checks', noVoice);
+  assert.deepEqual(result.evals, [
+    'evals/document-checks.md',
+    'plugins/p/evals/document-checks-basic/case.yaml',
+    'plugins/p/evals/document-checks-basic/graders/g.md',
+    'plugins/p/evals/document-checks-basic/scaffold.sh',
+  ]);
+  assert.ok(result.findings.some((f) => f.check === 'scripts' && f.severity === 'must' && f.path.endsWith('scaffold.sh')));
+  assert.deepEqual(checkSkill(root, 'plugins/p/skills/document', noVoice).evals, []);
+});
+
+test('evals inside the skill folder are listed too', () => {
+  const root = tree({ 'skills/e/SKILL.md': GOOD, 'skills/e/evals/evals.md': '# evals\n' });
+  assert.deepEqual(checkSkill(root, 'skills/e', noVoice).evals, ['skills/e/evals/evals.md']);
+});
+
+test('a changed path no skill read goes to skipped', () => {
+  const root = tree({ 'skills/h/SKILL.md': GOOD, 'skills/h/.env': 'x' });
+  const changed = ['skills/h/SKILL.md', 'skills/h/.env', 'README.md'];
+  const found = findSkills(root, changed);
+  const skipped = unclaimed([checkSkill(root, 'skills/h', noVoice)], changed, found.skipped);
+  assert.deepEqual(skipped.map((s) => s.path), ['README.md', 'skills/h/.env']);
+});
+
+test('skills-ref not run names the unchecked rules and the install command', () => {
+  const root = tree({ 'skills/r/SKILL.md': GOOD });
+  const { skillsRef } = checkSkill(root, 'skills/r', noVoice);
+  if (skillsRef.ran) return;
+  assert.deepEqual(skillsRef.unchecked, ['BP-S12', 'BP-S8']);
+  assert.match(skillsRef.install, /skills-ref/);
 });
 
 test('voice-lint findings are folded in with their voice-rules ID', () => {

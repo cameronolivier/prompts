@@ -33,7 +33,13 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 - **Prompt:** `/skill-review <folder> --post`
 - **Expect:** the reply says posting needs a PR; the review runs; nothing is posted.
 
-## 6. Triggering
+## 6. Plugin-level evals and unclaimed files
+
+- **Setup:** a PR that adds `plugins/p/skills/doc-checks/SKILL.md`, its evals in `plugins/p/evals/doc-checks-basic/` (`case.yaml`, `prompt.md`, `scaffold.sh` with an unquoted `$1`, `graders/g.md`), and a change to `plugins/p/README.md`.
+- **Prompt:** `/skill-review <n>`
+- **Expect:** `pregate.json` lists the four eval files under the skill's `evals`; the report counts them on the Reviewed line; the scripts axis raises `CR-3` on `scaffold.sh`; `plugins/p/README.md` appears under Skipped with its reason. If skills-ref is not installed, the report has a Not checked line naming `BP-S12` and `BP-S8` and the install command. No changed file is missing from both the review and Skipped.
+
+## 7. Triggering
 
 - **Should trigger:** "review skill PR 12", "can you check my SKILL.md", "skill review on this branch's skill".
 - **Should not trigger:** "write a new skill for X" (skill-creator), "review this PR" on a PR with no skill changes (code review), "what are our skill conventions" (skill-conventions).
