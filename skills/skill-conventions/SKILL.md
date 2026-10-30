@@ -1,6 +1,6 @@
 ---
 name: skill-conventions
-description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use whenever creating a new skill, editing a SKILL.md, or deciding where repeated logic should live. To review a skill PR, use `skill-review`, which applies these rules; to write or improve a skill end to end, use `skill-write`.
+description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use when hand-authoring or hand-editing a skill, or deciding where repeated logic should live. For the full write, review and fix loop, use `skill-write`; to review a skill PR, use `skill-review`; both apply these rules.
 allowed-tools:
   - Read
   - Write
@@ -9,8 +9,6 @@ model: haiku
 ---
 
 # Skill Authoring Conventions
-
-> **Recommended model: Haiku** — house-style reference, applied as a checklist. The skill being authored is what may need a heavier model; this layer is just rules.
 
 Personal layer on top of generic skill-writing skills. Those teach structure; this encodes the house style.
 
