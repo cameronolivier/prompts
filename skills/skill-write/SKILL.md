@@ -1,6 +1,6 @@
 ---
 name: skill-write
-description: Writes or improves a Claude Code skill through a compress, review and fix loop until skill-review finds nothing material, with the fewest tokens that keep every behaviour. Use when the user says "make a skill that passes skill-review", "write a skill to our conventions", "fix my skill's review findings", "tighten this SKILL.md", or "cut tokens from this skill". For a plain draft with no review loop, use skill-creator; for review without edits, use skill-review.
+description: Writes or improves a Claude Code skill so it passes skill-review at the lowest token cost. Use when the user says "make a skill that passes skill-review", "write a skill to our conventions", "fix my skill's review findings", "tighten this SKILL.md", or "cut tokens from this skill". For a plain draft with no review loop, use skill-creator; for review without edits, use skill-review.
 argument-hint: "[<skill-folder> | <what the new skill does>]"
 allowed-tools:
   - Read
@@ -38,7 +38,7 @@ Draft or take a skill, compress it, review it, fix it, and prove the compressed 
 | --- | --- | --- |
 | `skill-review` | review and fix loop (Steps 4–5) | required |
 | `voice-rules` | A-set rules for compression (Step 3) | required |
-| `skill-conventions` | house rules (SC-n) for drafting and fixes | required |
+| `skill-conventions` | house rules (cited as `skill-conventions §n`) for drafting and fixes | required |
 | `skill-creator` or `write-a-skill` | drafting interview (Step 1) | optional, new skills only |
 
 Node 18 or later runs the bundled scripts.
@@ -56,7 +56,7 @@ Node 18 or later runs the bundled scripts.
 ### 0. Check requirements
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs --project <repo-root>
+node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs --project "<repo-root>"
 ```
 
 Output: `{ ok, required, optional, drafting, missing }`; each `missing` entry has `name`, `role` and `install`. A skill named in your available-skills listing counts as found, even when the script misses it (an install path it does not search).
@@ -96,11 +96,11 @@ Read `voice-rules` (agent rules A1–A12). Work through `SKILL.md` and every age
 | no-ops | A9 | Delete each sentence the model obeys by default. Whole sentences only. |
 | duplicates | A8 | Keep each meaning in one place; replace a restatement with a pointer. |
 | triads | A5 | Collapse a behaviour restated at several sites into one leading word. |
-| placement | A2, SC-9 | Hard rules and output structure near the top. Material only some branches need moves to a sibling file, behind a pointer that says when to read it. |
+| placement | A2, skill-conventions §9 | Hard rules and output structure near the top. Material only some branches need moves to a sibling file, behind a pointer that says when to read it. |
 | emphasis | A6, A7 | Positive instructions; capitals for one or two real guardrails. |
 | ambiguity | A12 | Every fragment has one reading. Two readings: write it out. |
 
-Keep: every exact command, path, value and output field; every guardrail; each _why_ that decides a judgement call (BP-A12). Leave human-read text (H-set) in whole sentences.
+Keep: every exact command, path, value and output field; every guardrail; each _why_ that decides a judgement call. Leave human-read text (H-set) in whole sentences.
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/measure.mjs "<skill-folder>" --baseline "<scratchpad>/before.json"
