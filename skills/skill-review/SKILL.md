@@ -38,7 +38,7 @@ Review a skill change the way the next agent to run the skill would experience i
 
 `node` 18 or later, `git` 2.5 or later (worktrees), and `gh` signed in (`gh auth status`). Missing one: say which and stop before Step 1, so no worktree is left half made. Every `gh` call follows the `github-cli-rate-limits` skill; `post-review.mjs` checks the limit itself before posting.
 
-Optional: `skills-ref`, the Agent Skills reference validator (`pipx install skills-ref`). Without it the review runs, but `BP-S12` (strict spec validation) and the `BP-S8` portable-field check go unchecked, and the report says so.
+Optional: `skills-ref`, the Agent Skills reference validator. Install it with `uv tool install skills-ref` (or `pipx install skills-ref`); the PyPI package installs the command as `agentskills`, and the pre-gate tries both names. Without it the review runs, but `BP-S12` (strict spec validation) and the `BP-S8` portable-field check go unchecked; Step 2 offers to install it, and the report says what went unchecked.
 
 ## Modes
 
@@ -92,9 +92,11 @@ node ${CLAUDE_SKILL_DIR}/scripts/pregate.mjs --root <tree> --changed <scratchpad
 # path mode: node ${CLAUDE_SKILL_DIR}/scripts/pregate.mjs --root <tree> <folder> > <scratchpad>/pregate.json
 ```
 
-Output: `{ root, skills, skipped }`. Each skill has `dir`, `skillFile`, `frontmatter`, `bodyLines`, `approxTokens`, `files`, `evals`, `symlinks`, `voice` and `skillsRef` (each `{ ran, reason? }`; a `skillsRef` that did not run also has `unchecked` rule IDs and an `install` command), and `findings`. A finding is `{ check, severity, path, line, rule, title, body }`, the same fields `review.json` takes. The pre-gate never follows a symlink; it lists them in `symlinks` and raises a `SEC-5` finding.
+Output: `{ root, skills, skipped }`. Each skill has `dir`, `skillFile`, `frontmatter`, `bodyLines`, `approxTokens`, `files`, `evals`, `symlinks`, `voice` and `skillsRef` (each `{ ran, reason? }`; a `skillsRef` that ran also has the `command` it found and the Claude Code fields it `ignored`; one that did not run has `unchecked` rule IDs and an `install` command), and `findings`. A finding is `{ check, severity, path, line, rule, title, body }`, the same fields `review.json` takes. The pre-gate never follows a symlink; it lists them in `symlinks` and raises a `SEC-5` finding.
 
 `evals` lists the skill's eval files: `<skill>/evals/`, `<plugin>/evals/<skill-name>*` for a skill in `<plugin>/skills/`, and `evals/<skill-name>*` at the repository root. A changed eval file attaches its skill to the review. `skipped` holds every changed path that no skill claims, each `{ path, reason }`.
+
+**Validator missing.** When a skill's `skillsRef.reason` is `skills-ref not installed`, ask the user once, before Step 3: "skills-ref is not installed, so `BP-S12` and `BP-S8` go unchecked. Install it now with `uv tool install skills-ref`?" On yes, run the `install` command (the permission prompt is the user's second check) and run the pre-gate again. On no, or if the install fails, continue; Step 6 lists the rules under Not checked. Ask once per session, not once per skill.
 
 Done when `pregate.json` parses and every changed path is in a skill's `files`, `evals` or `symlinks`, or in `skipped`. With no skills, report the skipped list, say no skills changed, and stop.
 

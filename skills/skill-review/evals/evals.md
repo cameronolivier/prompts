@@ -39,7 +39,13 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 - **Prompt:** `/skill-review <n>`
 - **Expect:** `pregate.json` lists the four eval files under the skill's `evals`; the report counts them on the Reviewed line; the scripts axis raises `CR-3` on `scaffold.sh`; `plugins/p/README.md` appears under Skipped with its reason. If skills-ref is not installed, the report has a Not checked line naming `BP-S12` and `BP-S8` and the install command. No changed file is missing from both the review and Skipped.
 
-## 7. Triggering
+## 7. Validator missing, then present
+
+- **Setup:** a machine with neither `skills-ref` nor `agentskills` on `PATH`, and a skill whose frontmatter sets `model: sonnet` and `effort: low`.
+- **Prompt:** `/skill-review <path>`, answering no to the install question; then again, answering yes.
+- **Expect:** first run: one question offering `uv tool install skills-ref`, asked before Step 3 and only once; the report's Not checked line names `BP-S12` and `BP-S8` with the install command. Second run: the install runs behind its permission prompt, the pre-gate runs again, `skillsRef.command` is `agentskills`, `model` and `effort` are under `skillsRef.ignored`, and no `BP-S12` finding is raised for them.
+
+## 8. Triggering
 
 - **Should trigger:** "review skill PR 12", "can you check my SKILL.md", "skill review on this branch's skill".
 - **Should not trigger:** "write a new skill for X" (skill-creator), "review this PR" on a PR with no skill changes (code review), "what are our skill conventions" (skill-conventions).
