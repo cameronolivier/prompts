@@ -38,7 +38,7 @@ Review a skill change the way the next agent to run the skill would experience i
 
 `node` 18 or later, `git` 2.5 or later (worktrees), and `gh` signed in (`gh auth status`). Missing one: say which and stop before Step 1, so no worktree is left half made. Every `gh` call follows the `github-cli-rate-limits` skill; `post-review.mjs` checks the limit itself before posting.
 
-Optional: `skills-ref`, the Agent Skills reference validator. Install it with `uv tool install skills-ref` (or `pipx install skills-ref`); the PyPI package installs the command as `agentskills`, and the pre-gate tries both names. Without it the review runs, but `BP-S12` (strict spec validation) and the `BP-S8` portable-field check go unchecked; Step 2 offers to install it, and the report says what went unchecked.
+Optional: `skills-ref`, the Agent Skills reference validator. Install it with `uv tool install skills-ref` (or `pipx install skills-ref`). Without it the review runs, but `BP-S12` (strict spec validation) and the `BP-S8` portable-field check go unchecked; Step 2 offers to install it, and the report says what went unchecked.
 
 ## Modes
 
@@ -96,7 +96,7 @@ Output: `{ root, skills, skipped }`. Each skill has `dir`, `skillFile`, `frontma
 
 `evals` lists the skill's eval files: `<skill>/evals/`, `<plugin>/evals/<skill-name>*` for a skill in `<plugin>/skills/`, and `evals/<skill-name>*` at the repository root. A changed eval file attaches its skill to the review. `skipped` holds every changed path that no skill claims, each `{ path, reason }`.
 
-**Validator missing.** When a skill's `skillsRef.reason` is `skills-ref not installed`, ask the user once, before Step 3: "skills-ref is not installed, so `BP-S12` and `BP-S8` go unchecked. Install it now with `uv tool install skills-ref`?" On yes, run the `install` command (the permission prompt is the user's second check) and run the pre-gate again. On no, or if the install fails, continue; Step 6 lists the rules under Not checked. Ask once per session, not once per skill.
+**Validator missing.** When a skill's `skillsRef.reason` is `skills-ref not installed`, ask the user once, before Step 3: "skills-ref is not installed, so strict Agent Skills spec validation and the portable-field check (`BP-S12`, `BP-S8`) are skipped. Install it now with `uv tool install skills-ref`?" On yes, run the `install` command (the permission prompt is the user's second check) and run the pre-gate again. On no, or if the install fails, continue; Step 6 lists the rules under Not checked. Ask once per session, not once per skill.
 
 Done when `pregate.json` parses and every changed path is in a skill's `files`, `evals` or `symlinks`, or in `skipped`. With no skills, report the skipped list, say no skills changed, and stop.
 
