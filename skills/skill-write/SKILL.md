@@ -68,7 +68,7 @@ Done when every required skill is found, or the user has the table and the run h
 
 ### 1. Draft (new mode)
 
-Invoke `skill-creator` (or `write-a-skill`) for the interview: purpose, trigger phrases, output, inputs. Write `skills/<name>/` in the current repository (ask when the repository has no `skills/` folder). Apply `skill-conventions` while writing. Name the skill object-first, matching its siblings (`skill-review`, `comment-triage`).
+Interview the user for purpose, trigger phrases, output and inputs: through `skill-creator` (or `write-a-skill`) when Step 0 found one, otherwise ask those four directly. Write `skills/<name>/` in the current repository (ask when the repository has no `skills/` folder). Apply `skill-conventions` while writing. Name the skill object-first, matching its siblings (`skill-review`, `comment-triage`).
 
 Done when the frontmatter has `name` and `description`, and every purpose, trigger phrase, output and input from the interview appears in the draft.
 
