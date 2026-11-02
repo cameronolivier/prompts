@@ -59,6 +59,6 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 
 ## 10. Triggering
 
-- **Should trigger:** "review skill PR 12", "can you check my SKILL.md", "skill review on this branch's skill".
-- **Should not trigger:** "write a new skill for X" (skill-creator), "review this PR" on a PR with no skill changes (code review), "what are our skill conventions" (skill-conventions).
+- **Should trigger:** "review skill PR 12", "can you check my SKILL.md", "skill review on this branch's skill", "review skill PR 12 and post the comments", "is skill-review's best practice out of date", "refresh skill best practice".
+- **Should not trigger:** "write a new skill for X" (skill-creator), "review this PR" on a PR with no skill changes (code review), "what are our skill conventions" (skill-conventions), "update my skill's description" (skill editing), "refresh the docs" (docs work), "post my PR comments" on a code PR (PR feedback).
 - **Expect:** the skill loads for every should-trigger prompt and for none of the others.
