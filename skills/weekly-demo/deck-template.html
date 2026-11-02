@@ -1,0 +1,240 @@
+<title>{{TITLE}}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one 1920x1080 slide canvas, scaled to fit the window, on a dark viewing surround.
+   Deliberately single-look (the deck palette), so no dark-mode token blocks. */
+:root {
+  color-scheme: dark;
+  --navy: #14213D;
+  --navy-card: #1F2E4F;
+  --light: #F6F5F0;
+  --light-alt: #ECEAE2;
+  --card: #FDFCF9;
+  --card-line: #DCD9CE;
+  --text: #3D4A63;
+  --ink: #14213D;
+  --accent: #B4501A;
+  --accent-dark: #F29A55;
+  --status: #E4EDF2;
+  --endstate: #F9E1CF;
+  --surround: #0B1222;
+  --chrome-text: #C9D1E0;
+  --chrome-muted: #7F8BA3;
+  --hl-tint: rgba(242, 154, 85, 0.22);
+  --hl-ring: #E2762F;
+  --font-text: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+html, body { height: 100%; }
+body {
+  background: var(--surround);
+  color: var(--chrome-text);
+  font-family: var(--font-text);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.bar { display: flex; align-items: center; gap: 12px; font-size: 14px; min-width: 0; }
+.bar .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.bar .count { font-variant-numeric: tabular-nums; color: var(--chrome-muted); }
+.bar button {
+  font: inherit; color: var(--chrome-text); background: transparent;
+  border: 1px solid #2A3654; border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+.bar button:hover { border-color: var(--chrome-muted); }
+.bar button:focus-visible, .slide :focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
+.bar button[aria-pressed="true"] { background: #1F2E4F; }
+.hint { color: var(--chrome-muted); font-size: 13px; }
+@media (max-width: 640px) { .hint { display: none; } }
+
+.stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.frame { width: calc(1920px * var(--scale, 0.5)); height: calc(1080px * var(--scale, 0.5)); position: relative; overflow: hidden; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.45); }
+#deck { width: 1920px; height: 1080px; transform: scale(var(--scale, 0.5)); transform-origin: 0 0; position: absolute; left: 0; top: 0; }
+
+.notes-panel {
+  max-height: 22vh; overflow: auto; font-size: 15px; line-height: 1.5;
+  background: #121B30; border: 1px solid #2A3654; border-radius: 6px; padding: 12px 16px; white-space: pre-wrap;
+}
+
+/* ---------- Slide styles (author slides with these classes) ---------- */
+.slide {
+  position: absolute; inset: 0; box-sizing: border-box;
+  padding: 128px 128px 160px;
+  display: flex; flex-direction: column; gap: 40px;
+  background: var(--light); color: var(--text);
+  font-family: var(--font-text); font-size: 28px; line-height: 1.4;
+}
+.slide.alt { background: var(--light-alt); }
+.slide.dark { background: var(--navy); color: #E6EAF2; }
+.slide * { margin: 0; }
+.slide h1 { font-size: 96px; line-height: 1.05; color: var(--ink); font-weight: 600; text-wrap: balance; }
+.slide h2 { font-size: 64px; line-height: 1.1; color: var(--ink); font-weight: 600; text-wrap: balance; }
+.slide h3 { font-size: 30px; line-height: 1.25; color: var(--ink); font-weight: 600; }
+.slide.dark h1, .slide.dark h2, .slide.dark h3 { color: #FFFFFF; }
+.slide .eyebrow { font-size: 24px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.slide.dark .eyebrow { color: var(--accent-dark); }
+.slide ul, .slide ol { padding-left: 1.2em; display: flex; flex-direction: column; gap: 14px; }
+.slide code, .slide pre { font-family: var(--font-mono); font-size: 24px; }
+.slide a { color: var(--accent); }
+.slide.dark a { color: var(--accent-dark); }
+.slide .small { font-size: 24px; }
+.slide .grow { flex: 1; }
+
+.slide .cards { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 32px; }
+.slide .card { background: var(--card); border: 1px solid var(--card-line); border-radius: 14px; padding: 36px; display: flex; flex-direction: column; gap: 12px; }
+.slide.dark .card { background: var(--navy-card); border-color: #2C3D63; }
+.slide .num { font-size: 72px; font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.slide.dark .num { color: var(--accent-dark); }
+.slide .banner { background: var(--status); border-radius: 10px; padding: 24px 32px; }
+.slide .endstate { background: var(--endstate); border-left: 8px solid var(--accent); border-radius: 4px 10px 10px 4px; padding: 24px 32px; color: var(--ink); }
+.slide table { border-collapse: collapse; width: 100%; font-size: 26px; font-variant-numeric: tabular-nums; }
+.slide th, .slide td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--card-line); vertical-align: top; }
+.slide th { color: var(--ink); font-weight: 600; }
+.slide td.rec { background: var(--endstate); color: var(--ink); font-weight: 600; }
+.slide .footer { position: absolute; left: 128px; right: 128px; bottom: 64px; font-size: 24px; color: #6A7489; }
+.slide.dark .footer { color: #8C97AE; }
+.slide aside.notes { display: none; }
+
+/* ---------- Click to highlight ---------- */
+.slide :is(li, p, h3, tr, .card, .banner, .endstate, img, svg, figure, pre, [data-hl]) { cursor: pointer; }
+.slide :is(li, p, h3, tr, .card, .banner, .endstate, img, svg, figure, pre, [data-hl], td, th, h1, .num) { transition: opacity .25s ease, box-shadow .25s ease, background-color .25s ease; }
+.slide.has-hl :is(h1, h3, p, li, td, th, img, svg, figure, pre, .num, .footer):not(.hl, .hl *, :has(.hl)) { opacity: 0.28; }
+.slide.has-hl :is(.card, .banner, .endstate):not(.hl, .hl *, :has(.hl)) { box-shadow: none; filter: saturate(0.4); }
+.slide .hl { position: relative; border-radius: 8px; box-shadow: 0 0 0 10px var(--hl-tint), 0 0 0 13px var(--hl-ring); }
+.slide :is(li, p, h3, pre).hl { background: var(--hl-tint); }
+.slide tr.hl > * { background: var(--hl-tint); }
+.slide tr.hl { box-shadow: none; outline: 3px solid var(--hl-ring); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .slide * { transition: none !important; } }
+</style>
+
+<div class="bar">
+  <span class="name">{{TITLE}}</span>
+  <span class="hint">Click to highlight · click again to widen · Shift+click adds · Esc clears</span>
+  <span class="count" id="count">1 / 1</span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <button type="button" id="notesBtn" aria-pressed="false" title="Speaker notes (N)">Notes</button>
+  <button type="button" id="fsBtn" title="Full screen (F)">Full screen</button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="frame" id="frame">
+    <main id="deck">
+<!-- SLIDES -->
+    </main>
+  </div>
+</div>
+
+<div class="notes-panel" id="notes" hidden></div>
+
+<script>
+(() => {
+  const UNITS = "li, p, h3, tr, .card, .banner, .endstate, img, svg, figure, pre, [data-hl]";
+  const deck = document.getElementById("deck");
+  const slides = [...deck.querySelectorAll(":scope > section.slide")];
+  const stage = document.getElementById("stage");
+  const frame = document.getElementById("frame");
+  const notes = document.getElementById("notes");
+  const notesBtn = document.getElementById("notesBtn");
+  const count = document.getElementById("count");
+  let current = 0;
+
+  function fit() {
+    const s = Math.min(stage.clientWidth / 1920, stage.clientHeight / 1080);
+    frame.style.setProperty("--scale", s);
+    deck.style.setProperty("--scale", s);
+  }
+
+  function clearHl(slide) {
+    (slide || deck).querySelectorAll(".hl").forEach((el) => el.classList.remove("hl"));
+    (slide ? [slide] : slides).forEach((s) => s.classList.remove("has-hl"));
+  }
+
+  function show(i, fromHash) {
+    if (!slides.length) return;
+    current = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, n) => { s.hidden = n !== current; });
+    clearHl();
+    count.textContent = (current + 1) + " / " + slides.length;
+    const aside = slides[current].querySelector("aside.notes");
+    notes.textContent = aside ? aside.textContent.trim() : "No notes for this slide.";
+    if (!fromHash) {
+      const h = "#slide-" + (current + 1);
+      if (location.hash !== h) location.replace(h);
+    }
+  }
+
+  function fromHash() {
+    const m = /^#slide-(\d+)$/.exec(location.hash);
+    return m ? Number(m[1]) - 1 : 0;
+  }
+
+  function parentUnit(el, slide) {
+    const p = el.parentElement && el.parentElement.closest(UNITS);
+    return p && slide.contains(p) ? p : null;
+  }
+
+  deck.addEventListener("click", (e) => {
+    const slide = e.target.closest("section.slide");
+    if (!slide || e.target.closest("a")) return;
+    const unit = e.target.closest(UNITS);
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    if (!unit || !slide.contains(unit)) { clearHl(slide); return; }
+    if (unit.classList.contains("hl") || unit.querySelector(".hl")) {
+      // Click a highlighted item again: widen to the enclosing block, then clear.
+      const hlInside = unit.classList.contains("hl") ? unit : unit.querySelector(".hl");
+      const wider = parentUnit(hlInside, slide);
+      hlInside.classList.remove("hl");
+      if (wider && !additive) { clearHl(slide); wider.classList.add("hl"); }
+    } else {
+      if (!additive) clearHl(slide);
+      unit.querySelectorAll(".hl").forEach((el) => el.classList.remove("hl"));
+      unit.classList.add("hl");
+    }
+    slide.classList.toggle("has-hl", !!slide.querySelector(".hl"));
+  });
+
+  function toggleNotes() {
+    notes.hidden = !notes.hidden;
+    notesBtn.setAttribute("aria-pressed", String(!notes.hidden));
+    fit();
+  }
+
+  function toggleFull() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(() => {});
+    } catch (_) { /* not available in this view */ }
+  }
+
+  document.getElementById("prev").addEventListener("click", () => show(current - 1));
+  document.getElementById("next").addEventListener("click", () => show(current + 1));
+  notesBtn.addEventListener("click", toggleNotes);
+  document.getElementById("fsBtn").addEventListener("click", toggleFull);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea, [contenteditable]")) return;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " ") { e.preventDefault(); show(current + 1); }
+    else if (k === "ArrowLeft" || k === "PageUp") { e.preventDefault(); show(current - 1); }
+    else if (k === "Home") show(0);
+    else if (k === "End") show(slides.length - 1);
+    else if (k === "Escape") clearHl();
+    else if (k === "n" || k === "N") toggleNotes();
+    else if (k === "f" || k === "F") toggleFull();
+  });
+
+  window.addEventListener("hashchange", () => show(fromHash(), true));
+  new ResizeObserver(fit).observe(stage);
+  fit();
+  show(fromHash(), true);
+})();
+</script>
