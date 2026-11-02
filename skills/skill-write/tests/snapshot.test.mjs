@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { snapshot } from '../scripts/snapshot.mjs';
@@ -28,6 +28,18 @@ test('refuses a destination that is not an earlier snapshot', () => {
   writeFileSync(join(dest, 'keep.txt'), 'x');
   assert.equal(snapshot(src, dest).code, 1);
   assert.equal(readFileSync(join(dest, 'keep.txt'), 'utf8'), 'x');
+});
+
+test('refuses a skill with a symlink outside itself, keeps one inside', () => {
+  const { base, src, dest } = setup();
+  writeFileSync(join(base, 'outside.md'), 'x');
+  symlinkSync('SKILL.md', join(src, 'alias.md'));
+  assert.equal(snapshot(src, dest).code, 0);
+  symlinkSync('../outside.md', join(src, 'notes.md'));
+  const result = snapshot(src, join(base, 'before2'));
+  assert.equal(result.code, 1);
+  assert.match(result.message, /notes\.md/);
+  assert.equal(existsSync(join(base, 'before2')), false);
 });
 
 test('refuses a source without SKILL.md', () => {
