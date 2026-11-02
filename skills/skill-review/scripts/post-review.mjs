@@ -13,6 +13,7 @@
 //   - Dedupe by path + rule against existing skill-review threads (one GraphQL call).
 //     Open thread → skip. Resolved thread → post again, marked "still present".
 //   - A line outside the diff cannot take an inline comment (HTTP 422), so it goes in the summary.
+//     A summary for the same commit that already lists it (same path + rule) → skip.
 //
 // Exit: 0 posted (or dry run), 1 gh failure, 2 usage.
 
@@ -25,6 +26,8 @@ import { fileURLToPath } from 'node:url';
 export const marker = (rule) => `<!-- skill-review:${rule} -->`;
 const MARKER_RE = /<!-- skill-review:([^ ]+) -->/;
 const SUMMARY_MARKER = '<!-- skill-review:summary -->';
+// Outside-the-diff findings never become threads, so the summary line carries its own marker.
+export const outsideMarker = (f) => `<!-- skill-review-outside:${encodeURIComponent(f.path)}:${f.rule} -->`;
 
 // RIGHT-side line numbers a review comment may target, from a unified-diff patch.
 export function commentableLines(patch = '') {
@@ -91,7 +94,7 @@ export function commentBody(f) {
 
 export function reviewPayload(review, { inline, summary }) {
   const outside = summary.length
-    ? `\n\n### Outside the diff\n\n${summary.map((f) => `- \`${f.path}:${f.line}\` **${f.severity}** \`${f.rule}\` ${f.title}${f.stillPresent ? ' (still present)' : ''}. ${f.body.replace(/\n+/g, ' ')}`).join('\n')}`
+    ? `\n\n### Outside the diff\n\n${summary.map((f) => `- \`${f.path}:${f.line}\` **${f.severity}** \`${f.rule}\` ${f.title}${f.stillPresent ? ' (still present)' : ''}. ${f.body.replace(/\n+/g, ' ')} ${outsideMarker(f)}`).join('\n')}`
     : '';
   return {
     commit_id: review.commit,
@@ -147,6 +150,13 @@ function fetchCommentable(repo, pr) {
 export const hasSummaryFor = (reviews, commit) =>
   reviews.some((r) => r.commit_id === commit && (r.body || '').includes(SUMMARY_MARKER));
 
+// Split summary findings into fresh ones and ones a skill-review summary for this commit already lists.
+export function splitPostedSummary(summary, reviews, commit) {
+  const bodies = reviews.filter((r) => r.commit_id === commit && (r.body || '').includes(SUMMARY_MARKER)).map((r) => r.body).join('\n');
+  const posted = summary.filter((f) => bodies.includes(outsideMarker(f)));
+  return { fresh: summary.filter((f) => !posted.includes(f)), posted };
+}
+
 function fetchReviews(repo, pr) {
   return JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${pr}/reviews?per_page=100`])).flat();
 }
@@ -171,10 +181,14 @@ function main(argv) {
     if (limitProblem) { console.error(limitProblem); return 1; }
 
     const result = plan(review.findings || [], fetchThreads(review.repo, review.pr), fetchCommentable(review.repo, review.pr));
+    const reviews = fetchReviews(review.repo, review.pr);
+    const { fresh, posted: listed } = splitPostedSummary(result.summary, reviews, review.commit);
+    result.summary = fresh;
+    result.skipped.push(...listed.map((f) => ({ ...f, reason: 'already in the summary for this commit' })));
     const payload = reviewPayload(review, result);
     const counts = `inline ${result.inline.length}, summary ${result.summary.length}, skipped ${result.skipped.length}`;
     // A re-run with nothing new must not add a second summary review.
-    const nothingNew = !result.inline.length && !result.summary.length && hasSummaryFor(fetchReviews(review.repo, review.pr), review.commit);
+    const nothingNew = !result.inline.length && !result.summary.length && hasSummaryFor(reviews, review.commit);
     if (dryRun) {
       console.log(JSON.stringify({ counts, nothingNew, payload, skipped: result.skipped }, null, 2));
       return 0;

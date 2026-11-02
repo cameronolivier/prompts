@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -85,4 +85,16 @@ test('CLI against a local server: new → write → unchanged → changed → un
   } finally {
     server.close();
   }
+});
+
+test('a missing option value or a broken sources file is a usage error (2), not drift (1)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'drift-'));
+  const bad = join(dir, 'bad.json');
+  writeFileSync(bad, '{ not json');
+  const code = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' }).status;
+  assert.equal(code('--save'), 2);
+  assert.equal(code('--sources'), 2);
+  assert.equal(code('--sources', '--json'), 2);
+  assert.equal(code('--sources', join(dir, 'missing.json')), 2);
+  assert.equal(code('--sources', bad), 2);
 });
