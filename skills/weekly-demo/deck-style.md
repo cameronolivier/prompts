@@ -52,18 +52,24 @@ Cam removed these from the first deck, so do not add them:
 
 ## 4. Slide patterns
 
-- **Card row**: 2 to 4 cards, each a big number or a short h3 plus 1 to 3 lines.
-- **Comparison table**: rows are what is protected, columns are options, the last row is cost. Highlight the recommended column's cost row.
-- **Status banner**: one painted line under the content (`background:#E4EDF2`) for "consultant agreed", "ready to start".
-- **End-state banner**: orange tint with a left accent bar (`background:#F9E1CF;border-left:8px solid #B4501A`).
-- **Dark summary cards** (cover, end): navy `#14213D`, cards `#1F2E4F`, accent `#F29A55`, number 72px, h3 32px, text 26px.
+All patterns are classes in `deck-template.html`. Use them, not inline colours.
+
+- **Card row**: `<div class="cards">` of 2 to 4 `<div class="card">`, each a `<p class="num">` big number or a short `<h3>`, plus 1 to 3 lines.
+- **Comparison table**: rows are what is protected, columns are options, the last row is cost. Put `class="rec"` on the recommended column's cost cell.
+- **Status banner**: `<p class="banner">` under the content for "consultant agreed", "ready to start".
+- **End-state banner**: `<p class="endstate">` (orange tint, left accent bar).
+- **Dark summary cards** (cover, end): `<section class="slide dark">` with a card row. Number 72px, h3 30px, text 26 to 28px come from the classes.
+- **Eyebrow**: `<p class="eyebrow">` above the `<h2>` for the section name.
+- **Footer**: `<p class="footer">` as the last element before the notes.
+- **Highlight units**: every `li`, `p`, `h3`, table row and card is clickable on its own. Keep one point per `li` or `p`, so a click highlights exactly that point. Wrap a group that should light up together in `<div data-hl>`.
 
 ## 5. Look and layout
 
-- Typefaces: IBM Plex Sans (text) and JetBrains Mono (commands). Palette: navy `#14213D`, light `#F6F5F0` and `#ECEAE2` alternating, cards `#FDFCF9` with border `#DCD9CE`, accent `#B4501A` on light and `#F29A55` on dark, body text `#3D4A63`.
-- Type scale: h2 64px, h3 28 to 32px, body 26 to 30px, eyebrow and footer 24px. Nothing under 24px.
-- Footer: "<client> · Week of <date> · <section>", pinned at bottom 64px.
-- Dense slides drop to 24 to 26px. Offer to split a slide rather than shrinking further.
+- Typefaces: IBM Plex Sans (text) and JetBrains Mono (commands), loaded by the template. Palette tokens are in the template `:root`: navy `#14213D`, light `#F6F5F0` and `#ECEAE2` (class `alt`) alternating, cards `#FDFCF9` with border `#DCD9CE`, accent `#B4501A` on light and `#F29A55` on dark, body text `#3D4A63`.
+- Canvas is 1920×1080 with 128px margins (160px at the bottom for the footer). The page scales it to the window.
+- Type scale: h2 64px, h3 30px, body 28px, eyebrow, footer and `.small` 24px. Nothing under 24px.
+- Footer text: "<client> · Week of <date> · <section>".
+- Dense slides drop to `.small`. Offer to split a slide rather than shrinking further.
 
 ## 6. Team mode
 

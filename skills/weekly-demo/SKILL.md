@@ -1,6 +1,6 @@
 ---
 name: weekly-demo
-description: Build a weekly work list and demo slide deck for any project, either for the user's own work (from their Claude Code sessions, git, GitHub PRs, Jira and artifacts) or for the whole team (from a pasted team update plus team-wide git, PRs and Jira), then turn it into a Slides artifact. Use when the user says "what did I do this week", "list everything I've done since Friday", "weekly demo", "I need to demo my work", "make a slide deck of my week", "team update slides", "slides of the team's week", or "/weekly-demo <project> [team]".
+description: Build a weekly work list and demo slide deck for any project, either for the user's own work (from their Claude Code sessions, git, GitHub PRs, Jira and artifacts) or for the whole team (from a pasted team update plus team-wide git, PRs and Jira), then turn it into a click-to-highlight HTML deck artifact. Use when the user says "what did I do this week", "list everything I've done since Friday", "weekly demo", "I need to demo my work", "make a slide deck of my week", "team update slides", "slides of the team's week", or "/weekly-demo <project> [team]".
 argument-hint: "<project name or path> [team]"
 allowed-tools:
   - Read
@@ -20,7 +20,7 @@ model: sonnet
 
 # weekly-demo
 
-Turns a week of work on one project into (1) a complete, sourced list in chat and (2) a Slides artifact to present. Two gates: the user reviews the list and adds notes before any slide is written.
+Turns a week of work on one project into (1) a complete, sourced list in chat and (2) an HTML deck artifact to present. In the deck, clicking a bullet, paragraph, table row or card highlights it and dims the rest of the slide. Two gates: the user reviews the list and adds notes before any slide is written.
 
 Arguments: `/weekly-demo <project> [team]`.
 - `<project>`: a name in the config, or a folder path. With no argument, use the current working directory.
@@ -32,8 +32,9 @@ Arguments: `/weekly-demo <project> [team]`.
 - **Me mode: only the user's own work.** Team results go in only when the user says so, and are labelled as team work.
 - **Team mode: credit people by name** where the source names them, and say "we" where it does not. Never credit the user with a teammate's work.
 - **Every item has a source**: a session digest, commit, PR, Jira ticket, artifact or the user's notes. Never invent a figure, name or status.
-- **Read-only gathering.** No Jira, GitHub, cloud or compliance-tool writes. The only writes are the config entry, the digests in the job temp dir, the deck files and the Artifact publishes.
-- **Before editing any slide after the first publish, read it from the artifact** (`action: "read"`, `path`). The user edits the deck in the page between turns.
+- **Read-only gathering.** No Jira, GitHub, cloud or compliance-tool writes. The only writes are the config entry, the digests in the job temp dir, the deck file and the Artifact publishes.
+- **The deck is one HTML file built from `deck-template.html`.** Do not use the Slides artifact type: it allows no script, so click-to-highlight cannot work there.
+- **Edit the local `deck.html`, then republish it.** When the local file is missing (a new session), read the published page first (`action: "read"` with the `lastDeck` url) and save it as `deck.html` before editing.
 - **Slide wording follows `deck-style.md`.** Read it before writing the first slide. It covers: no ticket keys or PR numbers on visible text, plain language, generic wording for sensitive items, and the slide order.
 - Do not render or screenshot the deck to check it unless the user asks.
 
@@ -118,32 +119,26 @@ Me mode: end by asking for meeting or DSU notes. Add the items they reveal, corr
 
 ## Step 4: the deck (gate 2: the user asked for slides)
 
-1. Run `Artifact` with `action: "quickstart"` and `intent: "slides"`. Then publish with:
-   - the Slides `type_url`
-   - a title: "<Project> Week of <date>" (me) or "<Project> Team Week of <date>" (team)
-   - `auto_open: "after_first_write"`
-   
-   Follow the type instructions it returns.
-2. Read `${CLAUDE_SKILL_DIR}/deck-style.md`, including its team-mode section when relevant.
-3. Write the files under a folder in the working directory. The Artifact `root` must be in the working directory or the scratchpad, not `$CLAUDE_JOB_DIR`.
-   - `project/deck.json` first, then the cover. Publish both together.
-   - Then publish the rest in batches.
-4. Speaker notes carry the detail that is not on the slide: keys, commands, caveats, "check before saying".
-5. Reply with the slide list and every caveat (unverified items, sensitive content, private links), then the link.
+1. Read `${CLAUDE_SKILL_DIR}/deck-style.md`, including its team-mode section when relevant.
+2. Copy `${CLAUDE_SKILL_DIR}/deck-template.html` to `weekly-demo/<project>-<YYYY-MM-DD>/deck.html` in the working directory. Replace both `{{TITLE}}` with "<Project> Week of <date>" (me) or "<Project> Team Week of <date>" (team).
+3. Replace `<!-- SLIDES -->` with the slides, in deck order. Each slide is one `<section class="slide" id="<id>">` on a 1920×1080 canvas, written with the template's classes (deck-style.md section 5). Add `dark` or `alt` to the section for the navy or alternate background.
+4. Speaker notes go in one `<aside class="notes">` as the last child of each slide: keys, commands, caveats, "check before saying". The page shows them with the Notes button or the N key.
+5. Click-to-highlight needs no markup. The page highlights the nearest `li`, `p`, `h3`, `tr`, `.card`, `.banner`, `.endstate`, image or `pre`. Clicking again widens to the enclosing block. Add `data-hl` to any other `div` that should highlight as one unit (for example a column of a 3-column layout).
+6. Publish with `Artifact`: `file_path` = the deck file, `icon: "slides"`, and a one-sentence `description`. Write the whole deck before the first publish.
+7. Reply with the slide list and every caveat (unverified items, sensitive content, private links), then the link. Then set `lastDeck.<mode>` in the config to the new url (you have already used last week's for the delta slide). Mention the controls once: click to highlight, click again to widen, Shift+click adds, Esc clears, arrow keys move, F for full screen.
 
 ## Step 5: revise
 
 Expect many small rounds. For each round:
-- Read the slide (or the index) from the artifact, edit it, and publish only the changed files.
-- When a slide is removed, also remove it from `order` and repoint any section `start`.
+- Edit the slide's `<section>` in `deck.html`, then republish with the same `file_path`. A later session republishes with `url` = `lastDeck.<mode>` (read it first, as the hard rules say).
 - When a fact changes (for example a consultant replies or a decision is confirmed), update every slide that mentions it, and the matching memory note.
 
-After the deck is final, set `lastDeck.<mode>` in the config.
 
 ## Files
 
 - `scripts/detect-project.mjs`: works out a config entry from a folder.
 - `scripts/digest-sessions.mjs`: filters to the window, writes the digests and splits them into balanced groups.
 - `scripts/collect-git.mjs`: commits per repo in the window, the user's own or (`--team`) everyone's.
+- `deck-template.html`: the deck page. Palette, slide classes, slide navigation, speaker notes and click-to-highlight.
 - `deck-style.md`: wording, claims, slide order, patterns and palette. Read it before writing slides.
-- Tests: `node --test ${CLAUDE_SKILL_DIR}/tests/digest-sessions.test.mjs ${CLAUDE_SKILL_DIR}/tests/detect-project.test.mjs`.
+- Tests: `node --test ${CLAUDE_SKILL_DIR}/tests/*.test.mjs`.
