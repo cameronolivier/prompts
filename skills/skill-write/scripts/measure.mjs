@@ -23,12 +23,16 @@ const TEXT = /\.(md|mjs|js|cjs|ts|sh|py|json|ya?ml|txt)$/;
 export const approxTokens = (text) => Math.round(text.length / 4);
 
 // Reads `description` and `when_to_use`: inline, quoted, or a `>`/`|` block scalar.
-export function listingText(frontmatter) {
+// Without `description`, Claude Code lists the body's first non-empty line in its place.
+export function listingText(frontmatter, body = '') {
   const lines = frontmatter.split(/\r?\n/);
   const out = [];
   for (const key of ['description', 'when_to_use']) {
     const i = lines.findIndex((l) => l.startsWith(`${key}:`));
-    if (i < 0) continue;
+    if (i < 0) {
+      if (key === 'description') out.push(body.split('\n').find((l) => l.trim())?.trim() ?? '');
+      continue;
+    }
     const inline = lines[i].slice(key.length + 1).trim();
     if (inline && !/^[>|][-+]?$/.test(inline)) {
       out.push(inline.replace(/^(["'])(.*)\1$/, '$2'));
@@ -70,7 +74,7 @@ function walk(dir) {
 export function measure(dir) {
   const skillText = readFileSync(join(dir, 'SKILL.md'), 'utf8');
   const { frontmatter, body, bodyStartLine } = splitSkill(skillText);
-  const listing = listingText(frontmatter);
+  const listing = listingText(frontmatter, body);
   const files = walk(dir)
     .map((path) => {
       const text = readFileSync(path, 'utf8');

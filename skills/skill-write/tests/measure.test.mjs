@@ -12,6 +12,11 @@ test('listingText: inline, quoted and block descriptions plus when_to_use', () =
   assert.equal(listingText('description: Does X.\nwhen_to_use: On Y.'), 'Does X. On Y.');
 });
 
+test('listingText: no description falls back to the first non-empty body line', () => {
+  assert.equal(listingText('name: x', '\n\n# Heading line\n\nMore.'), '# Heading line');
+  assert.equal(listingText('name: x\nwhen_to_use: On Y.', '\nFirst line.\n'), 'First line. On Y.');
+});
+
 test('compactionLine: null under the cut, the first line past it otherwise', () => {
   assert.equal(compactionLine('short\n', 5), null);
   const body = Array.from({ length: 300 }, () => 'x'.repeat(99)).join('\n'); // 100 chars a line = 25 tokens
