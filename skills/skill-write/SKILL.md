@@ -61,7 +61,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs --project "<repo-root>"
 
 Output: `{ ok, required, optional, drafting, missing }`; each `missing` entry has `name`, `role` and `install`. A skill named in your available-skills listing counts as found, even when the script misses it (an install path it does not search).
 
-- `ok: false`: show the user a table of each missing skill with its role and install command, then stop.
+- `ok: false`: remove from `missing` each skill your listing has. If any remain, show the user a table of each with its role and install command, then stop.
 - New mode with `drafting: false`: say so, give the `install` from `optional`, and draft from `skill-conventions` alone.
 
 Done when every required skill is found, or the user has the table and the run has stopped.
