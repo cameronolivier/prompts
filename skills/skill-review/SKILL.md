@@ -146,7 +146,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/post-review.mjs <scratchpad>/review.json --dry-
 node ${CLAUDE_SKILL_DIR}/scripts/post-review.mjs <scratchpad>/review.json
 ```
 
-The script exits 2 on a malformed `review.json` (it names each missing field) and 1 on a `gh` failure or a low rate limit. The dry run prints the counts (inline; summary, for lines outside the diff; skipped, already raised in an open thread) and `nothingNew`. With `nothingNew: true`, say there is nothing new to post and skip the second command. Otherwise post; the post command asks for permission, which is the user's last check.
+The script exits 2 on a malformed `review.json` (it names each missing field) and 1 on a `gh` failure or a low rate limit. The dry run prints the counts (inline; summary, for lines outside the diff; skipped, already raised in an open thread or listed in this commit's summary) and `nothingNew`. With `nothingNew: true`, say there is nothing new to post and skip the second command. Otherwise post; the post command asks for permission, which is the user's last check.
 
 Done when the review URL and the counts are reported, or "nothing new to post" is.
 
