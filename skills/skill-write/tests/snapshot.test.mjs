@@ -52,6 +52,27 @@ test('refuses any symlink: inside, outside, absolute, or a chain through one', (
   assert.equal(snapshot(src, dest).code, 0);
 });
 
+test('refuses a dest that is, contains, or sits inside the skill, and deletes nothing', () => {
+  const { base, src, dest } = setup();
+  assert.equal(snapshot(src, dest).code, 0);
+  // dest is a marked snapshot; using it as the source too must not delete it.
+  assert.equal(snapshot(dest, dest).code, 1);
+  assert.equal(existsSync(join(dest, 'SKILL.md')), true);
+  // A marked dest that contains the source.
+  const inner = join(dest, 'inner-skill');
+  mkdirSync(inner);
+  writeFileSync(join(inner, 'SKILL.md'), 'x');
+  assert.equal(snapshot(inner, dest).code, 1);
+  assert.equal(existsSync(join(inner, 'SKILL.md')), true);
+  // Reached through a symlinked alias of the same folder.
+  symlinkSync(dest, join(base, 'alias'));
+  assert.equal(snapshot(dest, join(base, 'alias')).code, 1);
+  assert.equal(existsSync(join(dest, 'SKILL.md')), true);
+  // dest inside the skill.
+  assert.equal(snapshot(src, join(src, 'before')).code, 1);
+  assert.equal(existsSync(join(src, 'before')), false);
+});
+
 test('refuses a source without SKILL.md', () => {
   const { base, dest } = setup();
   assert.equal(snapshot(base, dest).code, 2);
