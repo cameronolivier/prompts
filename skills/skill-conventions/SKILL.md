@@ -28,7 +28,7 @@ allowed-tools:
   - Bash(jq:*)
 ```
 
-Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`. Exception: a read-only bundled script is pre-approved as the exact string SKILL.md runs (`Bash(node ${CLAUDE_SKILL_DIR}/scripts/x.mjs *)`, see §2).
+Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`. Exception: a read-only bundled script (or one that writes only to a new temp folder it creates) is pre-approved as the exact string SKILL.md runs (`Bash(node ${CLAUDE_SKILL_DIR}/scripts/x.mjs *)`, see §2).
 
 **Why:** bare `Bash` auto-approves `rm -rf`, `gh auth logout`, anything. Scoped permissions keep blast radius to what the skill actually needs.
 
@@ -46,7 +46,7 @@ skill-name/
     └── action.test.mjs # node --test, no network
 ```
 
-SKILL.md calls scripts through the interpreter and `${CLAUDE_SKILL_DIR}` (`node ${CLAUDE_SKILL_DIR}/scripts/action.mjs <args>`) with flag docs. It pre-approves the same string in `allowed-tools` only when the script is read-only; a script that writes, deletes, pushes, posts or sends stays out, even when re-running it is safe, so the permission prompt fires (as `skill-review` does with `post-review.mjs`). A `./scripts/` path resolves against the user's project, not the skill. SKILL.md does **not** reimplement the logic.
+SKILL.md calls scripts through the interpreter and `${CLAUDE_SKILL_DIR}` (`node ${CLAUDE_SKILL_DIR}/scripts/action.mjs <args>`) with flag docs. It pre-approves the same string in `allowed-tools` only when the script is read-only, or writes only to a new temp folder it creates itself (`mkdtemp`) and deletes nothing; a script that writes elsewhere, deletes, pushes, posts or sends stays out, even when re-running it is safe, so the permission prompt fires (as `skill-review` does with `post-review.mjs`). A `./scripts/` path resolves against the user's project, not the skill. SKILL.md does **not** reimplement the logic.
 
 **Why:** regenerating complex bash inline each invocation is wasteful, non-deterministic, and error-prone (quoting, heredoc delimiters). Scripts are the deterministic layer; SKILL.md is the when/why.
 
