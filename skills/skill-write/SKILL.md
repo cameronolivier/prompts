@@ -12,6 +12,7 @@ allowed-tools:
   - Agent
   - Bash(node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs:*)
   - Bash(node ${CLAUDE_SKILL_DIR}/scripts/measure.mjs:*)
+  - Bash(node ${CLAUDE_SKILL_DIR}/scripts/snapshot.mjs:*)
 model: opus
 metadata:
   requires: skill-review voice-rules skill-conventions
@@ -78,11 +79,11 @@ Done when the frontmatter has `name` and `description`, and every purpose, trigg
 `<skill-folder>` comes from the user: it must be an existing folder with a `SKILL.md`, and it stays double-quoted in every command.
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/scripts/snapshot.mjs "<skill-folder>" "<scratchpad>/before"
+node ${CLAUDE_SKILL_DIR}/scripts/snapshot.mjs "<skill-folder>"
 node ${CLAUDE_SKILL_DIR}/scripts/measure.mjs "<skill-folder>" > "<scratchpad>/before.json"
 ```
 
-`snapshot.mjs` replaces an earlier snapshot on a re-run. It exits 1 when the destination is some other folder, or when the skill has any symlink; for a symlink, stop and tell the user which links to remove.
+`snapshot.mjs` copies the skill into a new folder under the system temp directory and prints its path: that path is `<before>` for Step 6. It deletes nothing, and the OS clears old temp folders. It exits 1 when the skill has any symlink; stop and tell the user which links to remove.
 
 The skill needs `evals/evals.md` with at least three behaviour scenarios and a triggering section, in the format in [efficacy.md](efficacy.md). Missing or thinner: write them now, from the skill's steps, before any compression, and show them to the user.
 
@@ -123,7 +124,7 @@ Done when the verdict is "no material findings", or after three review passes, w
 
 ### 6. Efficacy gate
 
-Read [efficacy.md](efficacy.md) and run the paper runs it describes on `<scratchpad>/before` and the edited folder. For each regression, restore the cut text behind it from the snapshot and run that scenario again. When the gate restored anything, return to Step 4 and run Steps 4–6 again, so every later fix is gate-tested before Step 7. Step 5's three-pass limit counts every review pass, so the loop ends.
+Read [efficacy.md](efficacy.md) and run the paper runs it describes on `<before>` and the edited folder. For each regression, restore the cut text behind it from the snapshot and run that scenario again. When the gate restored anything, return to Step 4 and run Steps 4–6 again, so every later fix is gate-tested before Step 7. Step 5's three-pass limit counts every review pass, so the loop ends.
 
 When the user asks for a full benchmark and `skill-creator` is installed, use its eval loop in place of the paper runs.
 
