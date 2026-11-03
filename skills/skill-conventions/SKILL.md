@@ -50,7 +50,7 @@ SKILL.md calls scripts through the interpreter and `${CLAUDE_SKILL_DIR}` (`node 
 
 **Why:** regenerating complex bash inline each invocation is wasteful, non-deterministic, and error-prone (quoting, heredoc delimiters). Scripts are the deterministic layer; SKILL.md is the when/why.
 
-Always `chmod +x` and syntax-check the scripts (`node --check`, `bash -n`) before shipping.
+Always `chmod +x` and syntax-check the scripts before shipping: `node --check` for `.mjs`, `bash -n` for `.sh`.
 
 ## 3. Cache per-repo coordinates in committed files
 
@@ -147,7 +147,7 @@ Sources: <https://code.claude.com/docs/en/skills> and <https://platform.claude.c
 - [ ] `model:` set in frontmatter (haiku/sonnet/opus) — match cost to work
 - [ ] Per-dispatch `model:` set on every internal `Agent` tool call
 - [ ] Repeated bash >20 lines → extracted to `scripts/`
-- [ ] Scripts `chmod +x` and syntax-checked (`node --check`, `bash -n`); new ones in Node
+- [ ] Scripts `chmod +x` and syntax-checked (`node --check` for `.mjs`, `bash -n` for `.sh`); new ones in Node
 - [ ] No reliance on CLAUDE.md / memory for per-repo data
 - [ ] External API usage is cached + rate-limit-aware
 - [ ] Description has concrete trigger phrases
