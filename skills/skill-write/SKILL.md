@@ -12,7 +12,6 @@ allowed-tools:
   - Agent
   - Bash(node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs:*)
   - Bash(node ${CLAUDE_SKILL_DIR}/scripts/measure.mjs:*)
-  - Bash(node ${CLAUDE_SKILL_DIR}/scripts/snapshot.mjs:*)
 model: opus
 metadata:
   requires: skill-review voice-rules skill-conventions
