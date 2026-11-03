@@ -81,7 +81,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/snapshot.mjs "<skill-folder>" "<scratchpad>/bef
 node ${CLAUDE_SKILL_DIR}/scripts/measure.mjs "<skill-folder>" > "<scratchpad>/before.json"
 ```
 
-`snapshot.mjs` replaces an earlier snapshot on a re-run. It exits 1 when the destination is some other folder, or when the skill has a symlink pointing outside itself; for the symlink, stop and tell the user which link to remove.
+`snapshot.mjs` replaces an earlier snapshot on a re-run. It exits 1 when the destination is some other folder, or when the skill has any symlink; for a symlink, stop and tell the user which links to remove.
 
 The skill needs `evals/evals.md` with at least three behaviour scenarios and a triggering section, in the format in [efficacy.md](efficacy.md). Missing or thinner: write them now, from the skill's steps, before any compression, and show them to the user.
 

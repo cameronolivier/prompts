@@ -30,16 +30,26 @@ test('refuses a destination that is not an earlier snapshot', () => {
   assert.equal(readFileSync(join(dest, 'keep.txt'), 'utf8'), 'x');
 });
 
-test('refuses a skill with a symlink outside itself, keeps one inside', () => {
+test('refuses any symlink: inside, outside, absolute, or a chain through one', () => {
   const { base, src, dest } = setup();
   writeFileSync(join(base, 'outside.md'), 'x');
-  symlinkSync('SKILL.md', join(src, 'alias.md'));
+  mkdirSync(join(src, 'refs'));
+  for (const [name, target] of [
+    ['alias.md', 'SKILL.md'],
+    ['notes.md', '../outside.md'],
+    ['abs.md', join(src, 'SKILL.md')],
+    ['jump', '.'],
+    ['refs/via.md', '../jump/../outside.md'],
+  ]) {
+    const { src: s, dest: d } = setup();
+    if (name.startsWith('refs/')) mkdirSync(join(s, 'refs'));
+    symlinkSync(target, join(s, name));
+    const result = snapshot(s, d);
+    assert.equal(result.code, 1, name);
+    assert.match(result.message, new RegExp(name.replace('.', '\\.')));
+    assert.equal(existsSync(d), false, name);
+  }
   assert.equal(snapshot(src, dest).code, 0);
-  symlinkSync('../outside.md', join(src, 'notes.md'));
-  const result = snapshot(src, join(base, 'before2'));
-  assert.equal(result.code, 1);
-  assert.match(result.message, /notes\.md/);
-  assert.equal(existsSync(join(base, 'before2')), false);
 });
 
 test('refuses a source without SKILL.md', () => {
