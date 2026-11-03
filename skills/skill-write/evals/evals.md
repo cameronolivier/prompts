@@ -20,7 +20,7 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 
 - **Setup:** a skill whose only statement of "ask before deleting files" is a sentence that looks like a no-op; one eval expects the confirmation.
 - **Prompt:** `/skill-write <folder>`
-- **Expect:** if Step 3 deletes the sentence, the gate marks the scenario as a regression, the sentence is restored from the snapshot, Step 4 runs once more after the restore, and the report counts one cut restored.
+- **Expect:** if Step 3 deletes the sentence, the gate marks the scenario as a regression, the sentence is restored from the snapshot, Steps 4–6 run again after the restore, and the report counts one cut restored.
 
 ## 4. New skill
 
@@ -43,7 +43,7 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 
 - **Setup:** a skill with a should finding the fix step cannot clear (for example, a description that needs a product decision).
 - **Prompt:** `/skill-write <folder>`
-- **Expect:** Step 5 stops after three review passes (a fourth runs only when the Step 6 gate restored a cut); the report's `open` line names the finding's rule ID.
+- **Expect:** Step 4 runs at most three times in total, including passes after a Step 6 restore; the report's `open` line names the finding's rule ID.
 
 ## 8. No input
 

@@ -124,7 +124,7 @@ Done when the verdict is "no material findings", or after three review passes, w
 
 ### 6. Efficacy gate
 
-Read [efficacy.md](efficacy.md) and run the paper runs it describes on `<scratchpad>/before` and the edited folder. For each regression, restore the cut text behind it from the snapshot and run that scenario again. When the gate restored anything, run Step 4 once more.
+Read [efficacy.md](efficacy.md) and run the paper runs it describes on `<scratchpad>/before` and the edited folder. For each regression, restore the cut text behind it from the snapshot and run that scenario again. When the gate restored anything, return to Step 4 and run Steps 4–6 again, so every later fix is gate-tested before Step 7. Step 5's three-pass limit counts every review pass, so the loop ends.
 
 When the user asks for a full benchmark and `skill-creator` is installed, use its eval loop in place of the paper runs.
 
