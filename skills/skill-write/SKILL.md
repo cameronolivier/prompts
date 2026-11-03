@@ -59,12 +59,14 @@ Node 18 or later runs the bundled scripts.
 node ${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs --project "<repo-root>"
 ```
 
-Output: `{ ok, required, optional, drafting, missing }`; each `missing` entry has `name`, `role` and `install`. A skill named in your available-skills listing counts as found, even when the script misses it (an install path it does not search).
+Output: `{ ok, required, optional, drafting, missing }`; each `required` and `optional` entry has `name`, `role`, `install` and `path`.
 
-- `ok: false`: remove from `missing` each skill your listing has. If any remain, show the user a table of each with its role and install command, then stop.
-- New mode with `drafting: false`: say so, give the `install` from `optional`, and draft from `skill-conventions` alone.
+Your available-skills listing decides what is present: only a listed skill reaches the `Skill` tool, and a script `path` can point at a stale plugin cache. A skill is present when the listing has it under any namespace (`skill-review` or `mo-ai-labs:skill-review`).
 
-Done when every required skill is found, or the user has the table and the run has stopped.
+- A required skill absent from the listing, or a `missing` entry named `node`: show the user a table of each with its role and `install`, then stop.
+- New mode with neither drafting skill in the listing: say so, give the `install` from `optional`, and draft from `skill-conventions` alone.
+
+Done when every required skill is in the listing and Node is 18 or later, or the user has the table and the run has stopped.
 
 ### 1. Draft (new mode)
 
