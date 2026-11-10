@@ -18,9 +18,9 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 
 ## 3. Compression that breaks behaviour
 
-- **Setup:** a skill whose only statement of "ask before deleting files" is a sentence that looks like a no-op; one eval expects the confirmation.
-- **Prompt:** `/skill-write <folder>`
-- **Expect:** if Step 3 deletes the sentence, the gate marks the scenario as a regression, the sentence is restored from the snapshot, Steps 4–6 run again after the restore, and the report counts one cut restored.
+- **Setup:** a run paused after Step 3. `<before>` holds a skill whose only statement of "ask before deleting files" is one sentence; the target folder is the same skill with that sentence cut; one of its evals expects the confirmation.
+- **Prompt:** "continue the skill-write run on `<folder>` from Step 4, with `<before>` as the snapshot"
+- **Expect:** the gate marks that scenario as a regression; the sentence is restored from the snapshot; Steps 4–6 run again after the restore; the report counts one cut restored.
 
 ## 4. New skill
 
