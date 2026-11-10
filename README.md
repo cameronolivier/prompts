@@ -27,6 +27,7 @@ Skills are installed via `npx skills add`. Powered by [Vercel Skills](https://gi
 
 - **`commands/`** - Custom slash commands for Claude Code
 - **`skills/`** - Claude Code skill definitions
+- **`hooks/`** - Personal Claude Code hooks (`./hooks/install.sh`)
 - **`dev/`** - Development prompts (editor rules, project templates, MCPs)
 - **`general/`** - General-purpose prompts
 - **`meta/`** - Prompt engineering tools (evaluate, refine)
