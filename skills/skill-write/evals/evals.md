@@ -45,24 +45,30 @@ Each scenario: the prompt to type, the setup, and what must be true at the end. 
 - **Prompt:** `/skill-write <folder>`
 - **Expect:** Step 4 runs at most three times in total, including passes after a Step 6 restore; the report's `open` line names the finding's rule ID.
 
-## 8. No input
+## 8. Restore with an unfixable finding
+
+- **Setup:** the paused run from scenario 3, and the target also has the unfixable should finding from scenario 7.
+- **Prompt:** "continue the skill-write run on `<folder>` from Step 4, with `<before>` as the snapshot"
+- **Expect:** the gate restores the cut sentence; Step 4 runs at most three times in total, counting the passes before and after the restore; the report's `open` line names the finding's rule ID; the `gate` line counts one cut restored.
+
+## 9. No input
 
 - **Prompt:** `/skill-write`
 - **Expect:** the reply asks which skill folder, or what the new skill does; nothing runs past Step 0.
 
-## 9. Requirement found only in the listing
+## 10. Requirement found only in the listing
 
 - **Setup:** `skill-review` is installed at a path `check-deps.mjs` does not search, and appears in the session's skill listing.
 - **Prompt:** `/skill-write <folder>`
 - **Expect:** `check-deps.mjs` reports `skill-review` missing; the run continues past Step 0 because the listing has it; no install table is shown.
 
-## 10. Full benchmark
+## 11. Full benchmark
 
 - **Setup:** `skill-creator` is installed.
 - **Prompt:** `/skill-write <folder>, and run a full benchmark`
 - **Expect:** Step 6 uses `skill-creator`'s eval loop in place of the paper runs; the report's gate line comes from that run.
 
-## 11. Triggering
+## 12. Triggering
 
 - **Should trigger:** "make a skill for release notes that passes skill-review", "tighten this SKILL.md", "fix the skill-review findings on skills/boyscout".
 - **Should not trigger:** "review skill PR 12" (skill-review), "what are our skill conventions" (skill-conventions), "be terse" (terse), "quickly draft a skill, no review" (skill-creator).
