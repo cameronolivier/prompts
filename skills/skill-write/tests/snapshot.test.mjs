@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { snapshot } from '../scripts/snapshot.mjs';
@@ -28,6 +28,18 @@ test('copies into a new temp folder; a second run makes another and deletes noth
   assert.equal(readFileSync(join(first.message, 'SKILL.md'), 'utf8'), 'v1');
   assert.equal(readFileSync(join(second.message, 'SKILL.md'), 'utf8'), 'v2');
   assert.equal(readFileSync(join(src, 'SKILL.md'), 'utf8'), 'v2');
+});
+
+test('a skill folder reached through a symlink is copied as files, independent of the live skill', () => {
+  const { base, src, root } = setup();
+  const alias = join(base, 'alias-skill');
+  symlinkSync(src, alias);
+  const result = snapshot(alias, root);
+  assert.equal(result.code, 0);
+  assert.equal(lstatSync(result.message).isDirectory(), true);
+  assert.equal(lstatSync(join(result.message, 'SKILL.md')).isFile(), true);
+  writeFileSync(join(src, 'SKILL.md'), 'v2');
+  assert.equal(readFileSync(join(result.message, 'SKILL.md'), 'utf8'), 'v1');
 });
 
 test('refuses any symlink: inside, outside, absolute, or a chain through one', () => {

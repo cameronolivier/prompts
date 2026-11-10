@@ -13,7 +13,7 @@
 // Output: the snapshot path on stdout. Exit 0, 1 when the skill has a symlink, 2 on a usage
 // error, a <skill-dir> without SKILL.md, or a failed copy.
 
-import { cpSync, existsSync, mkdtempSync, readdirSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,10 +27,13 @@ export function symlinks(src, dir = src) {
   });
 }
 
-export function snapshot(src, root = tmpdir()) {
-  if (!existsSync(join(src, 'SKILL.md')) || !statSync(src).isDirectory()) {
-    return { code: 2, message: `${src} is not a skill folder (no SKILL.md)` };
+export function snapshot(path, root = tmpdir()) {
+  if (!existsSync(join(path, 'SKILL.md')) || !statSync(path).isDirectory()) {
+    return { code: 2, message: `${path} is not a skill folder (no SKILL.md)` };
   }
+  // A skill folder reached through a symlink (~/.claude/skills/x -> ~/.agents/skills/x) is
+  // copied from its real path, so the snapshot holds files, not a link back to the live skill.
+  const src = realpathSync(path);
   const links = symlinks(src);
   if (links.length) return { code: 1, message: `the skill has symlinks; remove them first: ${links.join(', ')}` };
   const dest = mkdtempSync(join(root, 'skill-write-'));
