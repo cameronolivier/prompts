@@ -1,6 +1,6 @@
 ---
 name: skill-conventions
-description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use whenever creating a new skill, editing a SKILL.md, or deciding where repeated logic should live. To review a skill PR, use `skill-review`, which applies these rules.
+description: House-style conventions for authoring Claude Code skills in Cam's workflow — scoped permissions, bundled scripts, committed-file caches over memory, and conservative external API usage. Apply alongside (not instead of) generic skill-writing skills like `write-a-skill` or `skill-development`. Use when hand-authoring or hand-editing a skill, or deciding where repeated logic should live. For the full write, review and fix loop, use `skill-write`; to review a skill PR, use `skill-review`; both apply these rules.
 allowed-tools:
   - Read
   - Write
@@ -9,8 +9,6 @@ model: haiku
 ---
 
 # Skill Authoring Conventions
-
-> **Recommended model: Haiku** — house-style reference, applied as a checklist. The skill being authored is what may need a heavier model; this layer is just rules.
 
 Personal layer on top of generic skill-writing skills. Those teach structure; this encodes the house style.
 
@@ -30,7 +28,7 @@ allowed-tools:
   - Bash(jq:*)
 ```
 
-Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`. Exception: a bundled script is pre-approved as the exact string SKILL.md runs (`Bash(node ${CLAUDE_SKILL_DIR}/scripts/x.mjs *)`, see §2).
+Use the colon-suffix form (`cmd:*`) — it's the idiomatic "this prefix plus any args". Multiple entries OR together. Env-var invocations need their own entry: `Bash(GH_DEBUG=*)`. Exception: a read-only bundled script (or one that writes only to a new temp folder it creates) is pre-approved as the exact string SKILL.md runs (`Bash(node ${CLAUDE_SKILL_DIR}/scripts/x.mjs *)`, see §2).
 
 **Why:** bare `Bash` auto-approves `rm -rf`, `gh auth logout`, anything. Scoped permissions keep blast radius to what the skill actually needs.
 
@@ -48,11 +46,11 @@ skill-name/
     └── action.test.mjs # node --test, no network
 ```
 
-SKILL.md calls scripts through the interpreter and `${CLAUDE_SKILL_DIR}` (`node ${CLAUDE_SKILL_DIR}/scripts/action.mjs <args>`) with flag docs, and pre-approves the same string in `allowed-tools`. A `./scripts/` path resolves against the user's project, not the skill. SKILL.md does **not** reimplement the logic.
+SKILL.md calls scripts through the interpreter and `${CLAUDE_SKILL_DIR}` (`node ${CLAUDE_SKILL_DIR}/scripts/action.mjs <args>`) with flag docs. It pre-approves the same string in `allowed-tools` only when the script is read-only, or writes only to a new temp folder it creates itself (`mkdtemp`) and deletes nothing; a script that writes elsewhere, deletes, pushes, posts or sends stays out, even when re-running it is safe, so the permission prompt fires (as `skill-review` does with `post-review.mjs`). A `./scripts/` path resolves against the user's project, not the skill. SKILL.md does **not** reimplement the logic.
 
 **Why:** regenerating complex bash inline each invocation is wasteful, non-deterministic, and error-prone (quoting, heredoc delimiters). Scripts are the deterministic layer; SKILL.md is the when/why.
 
-Always `chmod +x` and syntax-check the scripts (`node --check`, `bash -n`) before shipping.
+Always `chmod +x` and syntax-check the scripts before shipping: `node --check` for `.mjs`, `bash -n` for `.sh`.
 
 ## 3. Cache per-repo coordinates in committed files
 
@@ -149,7 +147,7 @@ Sources: <https://code.claude.com/docs/en/skills> and <https://platform.claude.c
 - [ ] `model:` set in frontmatter (haiku/sonnet/opus) — match cost to work
 - [ ] Per-dispatch `model:` set on every internal `Agent` tool call
 - [ ] Repeated bash >20 lines → extracted to `scripts/`
-- [ ] Scripts `chmod +x` and syntax-checked (`node --check`, `bash -n`); new ones in Node
+- [ ] Scripts `chmod +x` and syntax-checked (`node --check` for `.mjs`, `bash -n` for `.sh`); new ones in Node
 - [ ] No reliance on CLAUDE.md / memory for per-repo data
 - [ ] External API usage is cached + rate-limit-aware
 - [ ] Description has concrete trigger phrases
