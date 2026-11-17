@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hash, normalise } from '../scripts/check-drift.mjs';
+import { hash, normalise, validateSources } from '../scripts/check-drift.mjs';
 
 const CLI = fileURLToPath(new URL('../scripts/check-drift.mjs', import.meta.url));
 
@@ -97,4 +97,28 @@ test('a missing option value or a broken sources file is a usage error (2), not 
   assert.equal(code('--sources', '--json'), 2);
   assert.equal(code('--sources', join(dir, 'missing.json')), 2);
   assert.equal(code('--sources', bad), 2);
+});
+
+test('a sources file with a duplicate id or a missing url is a usage error (2)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'drift-bad-'));
+  const run = (sources) => {
+    const file = join(dir, 'sources.json');
+    writeFileSync(file, JSON.stringify({ sources }));
+    return spawnSync(process.execPath, [CLI, '--sources', file], { encoding: 'utf8' });
+  };
+  const dup = run([{ id: 'a', url: 'http://127.0.0.1:9/a' }, { id: 'a', url: 'http://127.0.0.1:9/b' }]);
+  assert.equal(dup.status, 2);
+  assert.match(dup.stderr, /duplicate source id "a"/);
+  const noUrl = run([{ id: 'a' }]);
+  assert.equal(noUrl.status, 2);
+  assert.match(noUrl.stderr, /source "a" has no url/);
+});
+
+test('validateSources needs a unique slug id and a url per source', () => {
+  const ok = { id: 'a', url: 'u' };
+  assert.equal(validateSources([ok, { id: 'b', url: 'u' }]), null);
+  assert.equal(validateSources([ok, { id: 'a', url: 'v' }]), 'duplicate source id "a"');
+  for (const id of [undefined, '', 1, '../x', 'A']) assert.equal(validateSources([{ id, url: 'u' }]), 'source 0 needs an id of a-z, 0-9 and -', `id ${id}`);
+  assert.equal(validateSources([ok, null]), 'source 1 needs an id of a-z, 0-9 and -');
+  for (const url of [undefined, '', 42]) assert.equal(validateSources([{ id: 'a', url }]), 'source "a" has no url', `url ${url}`);
 });

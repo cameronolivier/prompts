@@ -25,6 +25,18 @@ export function normalise(text) {
 
 export const hash = (text) => createHash('sha256').update(normalise(text)).digest('hex');
 
+// Hashes and --save files (<dir>/<id>.md) are keyed by id, so ids must be unique, path-safe slugs; each source needs a url to fetch.
+export function validateSources(sources) {
+  const ids = new Set();
+  for (const [i, s] of sources.entries()) {
+    if (typeof s?.id !== 'string' || !/^[a-z0-9-]+$/.test(s.id)) return `source ${i} needs an id of a-z, 0-9 and -`;
+    if (typeof s.url !== 'string' || !s.url) return `source "${s.id}" has no url`;
+    if (ids.has(s.id)) return `duplicate source id "${s.id}"`;
+    ids.add(s.id);
+  }
+  return null;
+}
+
 export async function checkSources(sources, { fetchImpl = fetch, timeoutMs = 20000 } = {}) {
   return Promise.all(sources.map(async (src) => {
     try {
@@ -73,6 +85,11 @@ async function main(argv) {
   }
   if (!Array.isArray(doc.sources)) {
     console.error(`${sourcesPath} has no "sources" array.`);
+    return 2;
+  }
+  const invalid = validateSources(doc.sources);
+  if (invalid) {
+    console.error(`${sourcesPath}: ${invalid}.`);
     return 2;
   }
   const results = await checkSources(doc.sources);
