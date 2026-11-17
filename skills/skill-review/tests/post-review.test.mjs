@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commentBody, commentableLines, hasSummaryFor, invalidFindings, marker, plan, rateLimitProblem, reviewPayload } from '../scripts/post-review.mjs';
+import { commentBody, commentableLines, hasSummaryFor, invalidFindings, marker, plan, rateLimitProblem, reviewPayload, splitPostedSummary } from '../scripts/post-review.mjs';
 
 test('rateLimitProblem stops a run below the floor, with the reset time', () => {
   const now = 1_000_000_000_000;
@@ -92,4 +92,14 @@ test('payload is always a COMMENT review with summary marker and outside-diff li
   assert.deepEqual(Object.keys(p.comments[0]), ['path', 'line', 'side', 'body']);
   assert.match(p.body, /### Outside the diff\n\n- `q:50` \*\*should\*\* `S`/);
   assert.ok(p.body.endsWith('<!-- skill-review:summary -->'));
+});
+
+test('a re-run on the same commit does not post outside-diff findings again', () => {
+  const sha = 'a'.repeat(40);
+  const old = { ...f('skills/x y/SKILL.md', 50, 'S'), also: [] };
+  const fresh = { ...f('q', 9, 'T'), also: [] };
+  const first = reviewPayload({ commit: sha, summary: 'Summary.' }, { inline: [], summary: [old] });
+  const reviews = [{ commit_id: sha, body: first.body }];
+  assert.deepEqual(splitPostedSummary([old, fresh], reviews, sha), { fresh: [fresh], posted: [old] });
+  assert.deepEqual(splitPostedSummary([old], [{ ...reviews[0], commit_id: 'b'.repeat(40) }], sha), { fresh: [old], posted: [] });
 });

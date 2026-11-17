@@ -12,7 +12,7 @@ What a person sees: the chat report, the posted summary and the inline comments.
 
 Reviewed: <skill folders>, with <n> eval files.
 Baselines: skill-conventions, best-practice.md (distilled <date>), voice-rules<, fallback snapshot if used>.
-Not checked: BP-S12, BP-S8 (skills-ref not installed: `pipx install skills-ref`), if skills-ref did not run.
+Not checked: BP-S12, BP-S8 (skills-ref not installed: `uv tool install skills-ref`), if skills-ref did not run.
 
 ### Must fix
 | Where | Rule | Finding | Breaks |

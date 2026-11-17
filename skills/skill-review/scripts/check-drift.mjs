@@ -25,6 +25,18 @@ export function normalise(text) {
 
 export const hash = (text) => createHash('sha256').update(normalise(text)).digest('hex');
 
+// Hashes and --save files (<dir>/<id>.md) are keyed by id, so ids must be unique, path-safe slugs; each source needs a url to fetch.
+export function validateSources(sources) {
+  const ids = new Set();
+  for (const [i, s] of sources.entries()) {
+    if (typeof s?.id !== 'string' || !/^[a-z0-9-]+$/.test(s.id)) return `source ${i} needs an id of a-z, 0-9 and -`;
+    if (typeof s.url !== 'string' || !s.url) return `source "${s.id}" has no url`;
+    if (ids.has(s.id)) return `duplicate source id "${s.id}"`;
+    ids.add(s.id);
+  }
+  return null;
+}
+
 export async function checkSources(sources, { fetchImpl = fetch, timeoutMs = 20000 } = {}) {
   return Promise.all(sources.map(async (src) => {
     try {
@@ -45,18 +57,41 @@ async function main(argv) {
   let write = false;
   let save = null;
   let sourcesPath = DEFAULT_SOURCES;
+  const usage = 'usage: check-drift.mjs [--json] [--write] [--sources <path>] [--save <dir>]';
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--json') json = true;
     else if (argv[i] === '--write') write = true;
-    else if (argv[i] === '--save') save = argv[++i];
-    else if (argv[i] === '--sources') sourcesPath = argv[++i];
-    else {
-      console.error('usage: check-drift.mjs [--json] [--write] [--sources <path>] [--save <dir>]');
+    else if (argv[i] === '--save' || argv[i] === '--sources') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--')) {
+        console.error(`${argv[i - 1]} needs a value. ${usage}`);
+        return 2;
+      }
+      if (argv[i - 1] === '--save') save = value;
+      else sourcesPath = value;
+    } else {
+      console.error(usage);
       return 2;
     }
   }
 
-  const doc = JSON.parse(readFileSync(sourcesPath, 'utf8'));
+  // Exit 1 means drift, so a missing or broken sources file must not exit 1.
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(sourcesPath, 'utf8'));
+  } catch (err) {
+    console.error(`cannot read ${sourcesPath}: ${err.message}. Pass a valid sources.json with --sources.`);
+    return 2;
+  }
+  if (!Array.isArray(doc.sources)) {
+    console.error(`${sourcesPath} has no "sources" array.`);
+    return 2;
+  }
+  const invalid = validateSources(doc.sources);
+  if (invalid) {
+    console.error(`${sourcesPath}: ${invalid}.`);
+    return 2;
+  }
   const results = await checkSources(doc.sources);
   const drift = results.filter((r) => r.status !== 'unchanged');
 
